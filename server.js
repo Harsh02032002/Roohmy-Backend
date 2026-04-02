@@ -334,4 +334,9 @@ function startServer() {
 }
 
 // Vercel serverless function export
-module.exports = app;
+if (process.env.VERCEL) {
+    module.exports = app;
+} else {
+    // Local development
+    startServer();
+}
