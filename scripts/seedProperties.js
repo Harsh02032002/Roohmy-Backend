@@ -1,0 +1,282 @@
+require('dotenv').config();
+const connectDB = require('../config/database');
+const mongoose = require('mongoose');
+
+// Define ApprovedProperty schema inline
+const ApprovedPropertySchema = new mongoose.Schema({
+  visitId: { type: String, required: true, unique: true },
+  propertyInfo: {
+    name: { type: String, required: true },
+    propertyType: String,
+    area: String,
+    city: String,
+    rent: Number,
+    genderSuitability: String,
+    photos: [String],
+    totalSeats: Number
+  },
+  status: { type: String, enum: ['approved', 'live', 'offline'], default: 'approved' },
+  isLiveOnWebsite: { type: Boolean, default: true },
+  nearbyColleges: [String],
+  professionalPhotos: [String],
+  submittedAt: { type: Date },
+  approvedAt: { type: Date, default: Date.now },
+  generatedCredentials: {
+    loginId: String,
+    password: String,
+    ownerName: String
+  },
+  approvedBy: String,
+  createdAt: { type: Date, default: Date.now }
+});
+
+const ApprovedProperty = mongoose.model('ApprovedProperty', ApprovedPropertySchema);
+
+const properties = [
+  // Kota Properties
+  { 
+    visitId: 'KOTA-PG-001', 
+    propertyInfo: { 
+      name: 'Cozy PG North', 
+      propertyType: 'PG', 
+      area: 'Dadabari', 
+      city: 'Kota', 
+      rent: 8000, 
+      genderSuitability: 'Co-ed',
+      totalSeats: 15,
+      photos: ['https://images.pexels.com/photos/1571468/pexels-photo-1571468.jpeg?auto=compress&cs=tinysrgb&w=600']
+    },
+    nearbyColleges: ['Allen Career Institute', 'Resonance Eduventures', 'Bansal Classes', 'Motion IIT-JEE', 'Vibrant Academy', 'Nucleus Education', 'Etoos India', 'Carrer Point', 'Allen Samanvaya'],
+    generatedCredentials: { loginId: 'kota_pg_001', ownerName: 'Rajesh Singh' }
+  },
+  { 
+    visitId: 'KOTA-HOSTEL-001', 
+    propertyInfo: { 
+      name: 'Student Hostel Central', 
+      propertyType: 'Hostel', 
+      area: 'Nayapura', 
+      city: 'Kota', 
+      rent: 6500, 
+      genderSuitability: 'Male',
+      totalSeats: 30,
+      photos: ['https://images.pexels.com/photos/1457842/pexels-photo-1457842.jpeg?auto=compress&cs=tinysrgb&w=600']
+    },
+    nearbyColleges: ['Allen Career Institute', 'Resonance Eduventures', 'Vidyamandir Classes', 'Akash Institute', 'Carrer Point', 'Bansal Classes', 'Etoos India', 'Vibrant Academy'],
+    generatedCredentials: { loginId: 'kota_hostel_001', ownerName: 'Priya Sharma' }
+  },
+  { 
+    visitId: 'KOTA-FLAT-001', 
+    propertyInfo: { 
+      name: 'Premium Shared Room', 
+      propertyType: 'Flat', 
+      area: 'Mahavir Nagar', 
+      city: 'Kota', 
+      rent: 9500, 
+      genderSuitability: 'Co-ed',
+      totalSeats: 4,
+      photos: ['https://images.pexels.com/photos/2988860/pexels-photo-2988860.jpeg?auto=compress&cs=tinysrgb&w=600']
+    },
+    nearbyColleges: ['Bansal Classes', 'Motion IIT-JEE', 'Vidyamandir Classes', 'Allen Samanvaya', 'Resonance Eduventures', 'Etoos India'],
+    generatedCredentials: { loginId: 'kota_flat_001', ownerName: 'Rohan Verma' }
+  },
+
+  // Indore Properties
+  { 
+    visitId: 'INDORE-PG-001', 
+    propertyInfo: { 
+      name: 'Modern PG Indore', 
+      propertyType: 'PG', 
+      area: 'Rajwada', 
+      city: 'Indore', 
+      rent: 7000, 
+      genderSuitability: 'Female',
+      totalSeats: 20,
+      photos: ['https://images.pexels.com/photos/1743229/pexels-photo-1743229.jpeg?auto=compress&cs=tinysrgb&w=600']
+    },
+    nearbyColleges: ['IIT Indore', 'MITS Indore', 'Devi Ahilya University', 'Indian Institute of Management Indore', 'Maharaja Ranjit Singh College', 'Acropolis Institute'],
+    generatedCredentials: { loginId: 'indore_pg_001', ownerName: 'Anjali Patel' }
+  },
+  { 
+    visitId: 'INDORE-HOSTEL-001', 
+    propertyInfo: { 
+      name: 'Budget Hostel Indore', 
+      propertyType: 'Hostel', 
+      area: 'Khajrana', 
+      city: 'Indore', 
+      rent: 5500, 
+      genderSuitability: 'Male',
+      totalSeats: 25,
+      photos: ['https://images.pexels.com/photos/1457842/pexels-photo-1457842.jpeg?auto=compress&cs=tinysrgb&w=600']
+    },
+    nearbyColleges: ['MITS Indore', 'Prestige Institute of Management', 'Choithram School', 'Indore Institute of Science and Technology', 'Sushila Devi Bansal College'],
+    generatedCredentials: { loginId: 'indore_hostel_001', ownerName: 'Vikram Singh' }
+  },
+
+  // Jaipur Properties
+  { 
+    visitId: 'JAIPUR-PG-001', 
+    propertyInfo: { 
+      name: 'Pink City PG', 
+      propertyType: 'PG', 
+      area: 'C Scheme', 
+      city: 'Jaipur', 
+      rent: 9000, 
+      genderSuitability: 'Female',
+      totalSeats: 18,
+      photos: ['https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=600']
+    },
+    nearbyColleges: ['MNIT Jaipur', 'Jaipur University', 'Manipal University', 'Amity University Jaipur', 'JECRC University', 'Poornima College'],
+    generatedCredentials: { loginId: 'jaipur_pg_001', ownerName: 'Neha Singh' }
+  },
+  { 
+    visitId: 'JAIPUR-FLAT-001', 
+    propertyInfo: { 
+      name: 'Studio Apartment Jaipur', 
+      propertyType: 'Flat', 
+      area: 'Tonk Road', 
+      city: 'Jaipur', 
+      rent: 12000, 
+      genderSuitability: 'Co-ed',
+      totalSeats: 2,
+      photos: ['https://images.pexels.com/photos/1643383/pexels-photo-1643383.jpeg?auto=compress&cs=tinysrgb&w=600']
+    },
+    nearbyColleges: ['IIT Jodhpur', 'MNIT Jaipur', 'ICFAI Jaipur', 'Jaipur National University', 'Stani Memorial College'],
+    generatedCredentials: { loginId: 'jaipur_flat_001', ownerName: 'Arun Kumar' }
+  },
+
+  // Delhi Properties
+  { 
+    visitId: 'DELHI-PG-001', 
+    propertyInfo: { 
+      name: 'North Campus PG', 
+      propertyType: 'PG', 
+      area: 'North Campus', 
+      city: 'Delhi', 
+      rent: 10000, 
+      genderSuitability: 'Female',
+      totalSeats: 12,
+      photos: ['https://images.pexels.com/photos/1571463/pexels-photo-1571463.jpeg?auto=compress&cs=tinysrgb&w=600']
+    },
+    nearbyColleges: ['Delhi University', 'AIIMS Delhi', 'IIT Delhi', 'IIIT Delhi'],
+    generatedCredentials: { loginId: 'delhi_pg_001', ownerName: 'Priya Gupt' }
+  },
+  { 
+    visitId: 'DELHI-FLAT-001', 
+    propertyInfo: { 
+      name: 'South Delhi Flat', 
+      propertyType: 'Flat', 
+      area: 'South Delhi', 
+      city: 'Delhi', 
+      rent: 15000, 
+      genderSuitability: 'Co-ed',
+      totalSeats: 3,
+      photos: ['https://images.pexels.com/photos/2988860/pexels-photo-2988860.jpeg?auto=compress&cs=tinysrgb&w=600']
+    },
+    nearbyColleges: ['Delhi Technological University', 'IIT Delhi', 'IIIT Delhi'],
+    generatedCredentials: { loginId: 'delhi_flat_001', ownerName: 'Vikram Sharma' }
+  },
+
+  // Bhopal Properties
+  { 
+    visitId: 'BHOPAL-PG-001', 
+    propertyInfo: { 
+      name: 'Lake City PG', 
+      propertyType: 'PG', 
+      area: 'Hoshangabad Road', 
+      city: 'Bhopal', 
+      rent: 6500, 
+      genderSuitability: 'Co-ed',
+      totalSeats: 16,
+      photos: ['https://images.pexels.com/photos/1571468/pexels-photo-1571468.jpeg?auto=compress&cs=tinysrgb&w=600']
+    },
+    nearbyColleges: ['Bhopal University', 'IISER Bhopal', 'Barkatullah University'],
+    generatedCredentials: { loginId: 'bhopal_pg_001', ownerName: 'Rajiv Jain' }
+  },
+
+  // Nagpur Properties
+  { 
+    visitId: 'NAGPUR-PG-001', 
+    propertyInfo: { 
+      name: 'Orange City PG', 
+      propertyType: 'PG', 
+      area: 'Sitabuldi', 
+      city: 'Nagpur', 
+      rent: 7500, 
+      genderSuitability: 'Female',
+      totalSeats: 14,
+      photos: ['https://images.pexels.com/photos/1743229/pexels-photo-1743229.jpeg?auto=compress&cs=tinysrgb&w=600']
+    },
+    nearbyColleges: ['VNIT Nagpur', 'RCOEM Nagpur', 'Nagpur University'],
+    generatedCredentials: { loginId: 'nagpur_pg_001', ownerName: 'Sunita Desai' }
+  },
+
+  // Mumbai Properties
+  { 
+    visitId: 'MUMBAI-HOSTEL-001', 
+    propertyInfo: { 
+      name: 'Mumbai Hostel Fort', 
+      propertyType: 'Hostel', 
+      area: 'Fort', 
+      city: 'Mumbai', 
+      rent: 8500, 
+      genderSuitability: 'Male',
+      totalSeats: 20,
+      photos: ['https://images.pexels.com/photos/1457842/pexels-photo-1457842.jpeg?auto=compress&cs=tinysrgb&w=600']
+    },
+    nearbyColleges: ['IIT Bombay', 'IIMC Mumbai', 'Mumbai University', 'St. Xaviers College'],
+    generatedCredentials: { loginId: 'mumbai_hostel_001', ownerName: 'Ashok Pillai' }
+  },
+
+  // Bangalore Properties
+  { 
+    visitId: 'BANGALORE-PG-001', 
+    propertyInfo: { 
+      name: 'Tech Park PG Bangalore', 
+      propertyType: 'PG', 
+      area: 'Whitefield', 
+      city: 'Bangalore', 
+      rent: 11000, 
+      genderSuitability: 'Co-ed',
+      totalSeats: 22,
+      photos: ['https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=600']
+    },
+    nearbyColleges: ['IIT Bangalore', 'IISC Bangalore', 'NIT Karnataka', 'Christ University'],
+    generatedCredentials: { loginId: 'bangalore_pg_001', ownerName: 'Arjun Kumar' }
+  }
+];
+
+async function seedProperties() {
+  try {
+    console.log('🔗 Connecting to MongoDB Atlas...');
+    await connectDB();
+    console.log('✅ Connected to MongoDB');
+
+    // Clear existing
+    await ApprovedProperty.deleteMany({});
+    console.log('🗑️  Cleared existing properties');
+
+    // Seed properties
+    const createdProperties = await ApprovedProperty.insertMany(properties);
+    console.log(`✅ Seeded ${createdProperties.length} properties:`);
+    
+    const grouped = {};
+    createdProperties.forEach(p => {
+      const city = p.propertyInfo.city;
+      if (!grouped[city]) grouped[city] = 0;
+      grouped[city]++;
+    });
+    
+    Object.entries(grouped).forEach(([city, count]) => {
+      console.log(`   - ${city}: ${count} properties`);
+    });
+
+    await mongoose.disconnect();
+    console.log('✅ Property seeding completed');
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Error seeding properties:', error.message);
+    process.exit(1);
+  }
+}
+
+seedProperties();
