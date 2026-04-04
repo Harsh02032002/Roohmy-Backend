@@ -50,7 +50,8 @@ const defaultOrigins = [
     'https://www.roomhy.com',
     'https://admin.roomhy.com',
     'https://app.roomhy.com',
-    'https://api.roomhy.com'
+    'https://api.roomhy.com',
+    'https://roohmy-frontend.vercel.app'
 ];
 const localOrigins = [
     'http://localhost:3000',
@@ -73,15 +74,14 @@ const localOrigins = [
 ];
 const allowedOrigins = Array.from(new Set([...(envOrigins.length ? envOrigins : defaultOrigins), ...localOrigins]));
 const corsOptions = {
-    origin: (origin, callback) => {
-        // Allow server-to-server tools and curl/postman requests without Origin header
-        if (!origin) return callback(null, true);
-        if (allowedOrigins.includes(origin)) return callback(null, true);
-        return callback(new Error(`CORS blocked for origin: ${origin}`));
+    origin: function (origin, callback) {
+        // Allow all origins temporarily
+        callback(null, true);
     },
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    optionsSuccessStatus: 200
 };
 const io = new Server(server, {
     cors: corsOptions
@@ -120,9 +120,7 @@ const mongoOptions = {
     socketTimeoutMS: 45000,
     connectTimeoutMS: 10000,
     maxPoolSize: 10,
-    minPoolSize: 2,
-    bufferMaxEntries: 0, // Disable mongoose buffering
-    bufferCommands: false // Disable mongoose buffering
+    minPoolSize: 2
 };
 
 console.log('🔗 Connecting to MongoDB...');
@@ -268,6 +266,36 @@ app.get('/api/health', (req, res) => {
         env: process.env.NODE_ENV || 'development',
         timestamp: new Date().toISOString()
     });
+});
+
+// Root route handler for Vercel
+app.get('/', (req, res) => {
+    res.json({
+        success: true,
+        service: 'roomhy-backend API',
+        version: '1.0.1',
+        status: 'running - CORS Fixed',
+        timestamp: new Date().toISOString(),
+        cors: 'All origins allowed'
+    });
+});
+
+// Favicon handler
+app.get('/favicon.ico', (req, res) => {
+    res.status(204).end();
+});
+
+// Handle preflight requests for all routes
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    if (req.method === 'OPTIONS') {
+        res.status(200).end();
+    } else {
+        next();
+    }
 });
 
 // Static File Serving (MUST come AFTER API routes)

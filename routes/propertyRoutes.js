@@ -10,6 +10,12 @@ const { formLimiter } = require('../middleware/security');
 // Made public for dashboard pages that don't send auth token consistently.
 router.get('/', propertyController.getAllProperties);
 
+// Add/Create new property with auto-geocoding
+router.post('/add', formLimiter, auditTrail('properties'), propertyController.addProperty);
+
+// Get single property by ID
+router.get('/:id', propertyController.getPropertyById);
+
 // Superadmin publishes property
 router.post('/:id/publish', protect, authorize('superadmin'), propertyController.publishProperty);
 

@@ -2,6 +2,50 @@ const Property = require('../models/Property');
 const Enquiry = require('../models/Enquiry');
 const Employee = require('../models/Employee');
 const Notification = require('../models/Notification');
+const { geocodeAddress } = require('../utils/geocode');
+
+// Create / Add a new Property with auto-geocoding
+exports.addProperty = async (req, res) => {
+  try {
+    const propertyData = { ...req.body };
+
+    // Auto-geocode address to lat/long
+    if (propertyData.address && propertyData.address.trim()) {
+      try {
+        const geo = await geocodeAddress(propertyData.address);
+        propertyData.latitude = geo.latitude;
+        propertyData.longitude = geo.longitude;
+        console.log(`Geocoded "${propertyData.address}" → ${geo.latitude}, ${geo.longitude}`);
+      } catch (geoErr) {
+        console.warn('Geocoding failed, saving without coordinates:', geoErr.message);
+      }
+    }
+
+    const property = new Property(propertyData);
+    await property.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Property created successfully',
+      property
+    });
+  } catch (err) {
+    console.error('Add Property Error:', err);
+    res.status(500).json({ success: false, message: 'Failed to create property', error: err.message });
+  }
+};
+
+// Get single property by ID
+exports.getPropertyById = async (req, res) => {
+  try {
+    const property = await Property.findById(req.params.id).populate('owner', 'name phone email');
+    if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
+    res.json({ success: true, property });
+  } catch (err) {
+    console.error('Get Property Error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
 
 // Get ALL Properties (For Super Admin & Area Manager lists)
 exports.getAllProperties = async (req, res) => {
