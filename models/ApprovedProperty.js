@@ -22,7 +22,9 @@ const ApprovedPropertySchema = new mongoose.Schema({
         description: { type: String },
         amenities: [{ type: String }],
         genderSuitability: { type: String },
-        propertyType: { type: String }
+        propertyType: { type: String },
+        latitude: { type: Number, default: null },
+        longitude: { type: Number, default: null }
     },
     professionalPhotos: [{ type: String }],
     nearbyColleges: [{ type: String }],

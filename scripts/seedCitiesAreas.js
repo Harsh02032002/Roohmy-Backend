@@ -1,152 +1,236 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const connectDB = require('../config/database');
 const mongoose = require('mongoose');
 
-// Define schemas inline
-const CitySchema = new mongoose.Schema({
-  name: { type: String, required: true, unique: true },
-  state: String,
-  country: { type: String, default: 'India' },
-  population: Number,
-  colleges: [String],
-  createdAt: { type: Date, default: Date.now }
-});
-
-const AreaSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  city: { type: String, required: true },
-  zone: String,
-  landmarks: [String],
-  createdAt: { type: Date, default: Date.now }
-});
-
-const City = mongoose.model('City', CitySchema);
-const Area = mongoose.model('Area', AreaSchema);
+const City = require('../models/City');
+const Area = require('../models/Area');
 
 const citiesData = [
   {
     name: 'Kota',
     state: 'Rajasthan',
-    colleges: ['Allen', 'FIITJEE', 'Bansal Classes', 'Resonance'],
-    population: 1200000
+    country: 'India',
+    colleges: ['Allen Career Institute', 'Resonance', 'Bansal Classes', 'Vibrant Academy'],
+    population: 1200000,
+    imageUrl: 'https://images.pexels.com/photos/466685/pexels-photo-466685.jpeg?auto=compress&cs=tinysrgb&w=400',
+    imagePublicId: 'roomhy/cities/kota_466685',
+    propertyCount: 850,
+    description: 'Education hub of India, famous for coaching institutes',
+    coordinates: { latitude: 25.2138, longitude: 75.8648 },
+    status: 'Active',
+    createdBy: 'superadmin',
+    lastModifiedBy: 'superadmin'
   },
   {
     name: 'Indore',
     state: 'Madhya Pradesh',
-    colleges: ['IIT-Indore', 'MITS', 'NRI Institute', 'Devi Ahilya University'],
-    population: 2100000
+    country: 'India',
+    colleges: ['IIM Indore', 'IIT Indore', 'DAVV', 'Medi-Caps University'],
+    population: 2100000,
+    imageUrl: 'https://images.pexels.com/photos/1370704/pexels-photo-1370704.jpeg?auto=compress&cs=tinysrgb&w=400',
+    imagePublicId: 'roomhy/cities/indore_1370704',
+    propertyCount: 620,
+    description: 'Cleanest city of India, major educational and commercial center',
+    coordinates: { latitude: 22.7196, longitude: 75.8577 },
+    status: 'Active',
+    createdBy: 'superadmin',
+    lastModifiedBy: 'superadmin'
   },
   {
     name: 'Jaipur',
     state: 'Rajasthan',
-    colleges: ['IIT-JRX', 'BITS-Pilani', 'MNIT', 'RTU'],
-    population: 3046000
+    country: 'India',
+    colleges: ['Malaviya National Institute of Technology', 'Rajasthan University', 'Jaipur National University'],
+    population: 3200000,
+    imageUrl: 'https://images.pexels.com/photos/3581369/pexels-photo-3581369.jpeg?auto=compress&cs=tinysrgb&w=400',
+    imagePublicId: 'roomhy/cities/jaipur_pinkcity_3581369',
+    propertyCount: 980,
+    description: 'Pink City of India, major tourist and educational destination',
+    coordinates: { latitude: 26.9124, longitude: 75.7873 },
+    status: 'Active',
+    createdBy: 'superadmin',
+    lastModifiedBy: 'superadmin'
   },
   {
     name: 'Delhi',
     state: 'Delhi',
-    colleges: ['Delhi University', 'IIT-Delhi', 'NSIT', 'Jamia'],
-    population: 30927000
+    country: 'India',
+    colleges: ['IIT Delhi', 'Delhi University', 'JNU', 'AIIMS Delhi'],
+    population: 32000000,
+    imageUrl: 'https://images.pexels.com/photos/789380/pexels-photo-789380.jpeg?auto=compress&cs=tinysrgb&w=400',
+    imagePublicId: 'roomhy/cities/delhi_789380',
+    propertyCount: 1000,
+    description: 'Capital of India, major educational and commercial hub',
+    coordinates: { latitude: 28.6139, longitude: 77.2090 },
+    status: 'Active',
+    createdBy: 'superadmin',
+    lastModifiedBy: 'superadmin'
   },
   {
     name: 'Bhopal',
     state: 'Madhya Pradesh',
-    colleges: ['IISER-Bhopal', 'MATS University', 'Barkatullah University'],
-    population: 1782000
+    country: 'India',
+    colleges: ['IIT Bhopal', 'MANIT', 'Barkatullah University'],
+    population: 1800000,
+    imageUrl: 'https://images.pexels.com/photos/1134176/pexels-photo-1134176.jpeg?auto=compress&cs=tinysrgb&w=400',
+    imagePublicId: 'roomhy/cities/bhopal_1134176',
+    propertyCount: 450,
+    description: 'City of Lakes, emerging educational center',
+    coordinates: { latitude: 23.2599, longitude: 77.4126 },
+    status: 'Active',
+    createdBy: 'superadmin',
+    lastModifiedBy: 'superadmin'
   },
   {
     name: 'Nagpur',
     state: 'Maharashtra',
-    colleges: ['Nagpur University', 'VNIT', 'RCOEM', 'NIT Nagpur'],
-    population: 2405000
+    country: 'India',
+    colleges: ['IIM Nagpur', 'NIT Nagpur', 'Nagpur University'],
+    population: 2400000,
+    imageUrl: 'https://images.pexels.com/photos/1181406/pexels-photo-1181406.jpeg?auto=compress&cs=tinysrgb&w=400',
+    imagePublicId: 'roomhy/cities/nagpur_1181406',
+    propertyCount: 380,
+    description: 'Orange City, major educational hub in central India',
+    coordinates: { latitude: 21.1458, longitude: 79.0882 },
+    status: 'Active',
+    createdBy: 'superadmin',
+    lastModifiedBy: 'superadmin'
+  },
+  {
+    name: 'Jodhpur',
+    state: 'Rajasthan',
+    country: 'India',
+    colleges: ['IIT Jodhpur', 'JNV University', 'MBM Engineering College'],
+    population: 1400000,
+    imageUrl: 'https://images.pexels.com/photos/1007426/pexels-photo-1007426.jpeg?auto=compress&cs=tinysrgb&w=400',
+    imagePublicId: 'roomhy/cities/jodhpur_1007426',
+    propertyCount: 320,
+    description: 'Sun City, emerging educational destination',
+    coordinates: { latitude: 26.2389, longitude: 73.0243 },
+    status: 'Active',
+    createdBy: 'superadmin',
+    lastModifiedBy: 'superadmin'
   },
   {
     name: 'Mumbai',
     state: 'Maharashtra',
-    colleges: ['IIT-Mumbai', 'Mumbai University', 'NMIMS', 'AISSMS'],
-    population: 20411000
-  },
-  {
-    name: 'Bangalore',
-    state: 'Karnataka',
-    colleges: ['IIT-Bangalore', 'VTU', 'RV University', 'BMSCE'],
-    population: 8400000
+    country: 'India',
+    colleges: ['IIT Bombay', 'Mumbai University', 'NITIE Mumbai', 'TIFR'],
+    population: 20400000,
+    imageUrl: 'https://images.pexels.com/photos/2404949/pexels-photo-2404949.jpeg?auto=compress&cs=tinysrgb&w=400',
+    imagePublicId: 'roomhy/cities/mumbai_2404949',
+    propertyCount: 1500,
+    description: 'Financial capital of India, major educational and business hub',
+    coordinates: { latitude: 19.0760, longitude: 72.8777 },
+    status: 'Active',
+    createdBy: 'superadmin',
+    lastModifiedBy: 'superadmin'
   }
 ];
 
 const areasData = [
-  // Kota areas
-  { city: 'Kota', name: 'Dadabari', zone: 'North', landmarks: ['Railway Station', 'Main Road'] },
-  { city: 'Kota', name: 'Nayapura', zone: 'Central', landmarks: ['Hospital', 'Market'] },
-  { city: 'Kota', name: 'Mahavir Nagar', zone: 'East', landmarks: ['Park', 'School'] },
-  { city: 'Kota', name: 'Shreenath Puram', zone: 'West', landmarks: ['Temple', 'Bus Stand'] },
-  { city: 'Kota', name: 'Rajeev Nagar', zone: 'South', landmarks: ['College', 'PG Area'] },
+  // Mumbai Areas
+  { name: 'Andheri', city: null, cityName: 'Mumbai', zone: 'West', landmarks: ['Andheri Station', 'Infinity Mall', 'Lokhandwala'], imageUrl: 'https://images.pexels.com/photos/2404949/pexels-photo-2404949.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/andheri_mumbai_2404949', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Bandra', city: null, cityName: 'Mumbai', zone: 'West', landmarks: ['Bandra Station', 'Linking Road', 'Hill Road'], imageUrl: 'https://images.pexels.com/photos/189349/pexels-photo-189349.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/bandra_mumbai_189349', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  // Kota Areas
+  { name: 'Talwandi', city: null, cityName: 'Kota', zone: 'Central', landmarks: ['Allen Career Institute', 'Kota Junction'], imageUrl: 'https://images.pexels.com/photos/1571469/pexels-photo-1571469.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/talwandi_kota_1571469', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Mahaveer Nagar', city: null, cityName: 'Kota', zone: 'South', landmarks: ['Resonance Institute', 'Mahaveer Nagar Market'], imageUrl: 'https://images.pexels.com/photos/323780/pexels-photo-323780.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/mahaveernagar_kota_323780', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Vigyan Nagar', city: null, cityName: 'Kota', zone: 'North', landmarks: ['Bansal Classes', 'Vigyan Nagar Park'], imageUrl: 'https://images.pexels.com/photos/1108571/pexels-photo-1108571.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/vigyannagar_kota_1108571', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Rangbari', city: null, cityName: 'Kota', zone: 'East', landmarks: ['Rangbari Garden', 'Kota Railway Station'], imageUrl: 'https://images.pexels.com/photos/3861969/pexels-photo-3861969.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/rangbari_kota_3861969', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Gumanpura', city: null, cityName: 'Kota', zone: 'West', landmarks: ['Gumanpura Market', 'Kota Bus Stand'], imageUrl: 'https://images.pexels.com/photos/70497/pexels-photo-70497.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/gumanpura_kota_70497', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
   
-  // Indore areas
-  { city: 'Indore', name: 'Rajwada', zone: 'Central', landmarks: ['Palace', 'Market'] },
-  { city: 'Indore', name: 'Khajrana', zone: 'North', landmarks: ['Temple', 'Hospital'] },
-  { city: 'Indore', name: 'Vijayanagar', zone: 'East', landmarks: ['Market', 'Bus Stand'] },
-  { city: 'Indore', name: 'Palasia', zone: 'Central', landmarks: ['Shopping', 'Restaurants'] },
-  { city: 'Indore', name: 'Rau', zone: 'West', landmarks: ['Station', 'Market'] },
+  // Indore Areas
+  { name: 'Vijay Nagar', city: null, cityName: 'Indore', zone: 'East', landmarks: ['IIM Indore', 'C21 Mall'], imageUrl: 'https://images.pexels.com/photos/1571467/pexels-photo-1571467.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/vijaynagar_indore_1571467', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Palasia', city: null, cityName: 'Indore', zone: 'Central', landmarks: ['Palasia Market', 'MG Road'], imageUrl: 'https://images.pexels.com/photos/1486222/pexels-photo-1486222.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/palasia_indore_1486222', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Bhawarkua', city: null, cityName: 'Indore', zone: 'South', landmarks: ['Bhawarkua Square', 'Sarafa Market'], imageUrl: 'https://images.pexels.com/photos/276673/pexels-photo-276673.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/bhawarkua_indore_276673', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Geeta Bhawan', city: null, cityName: 'Indore', zone: 'North', landmarks: ['Geeta Bhawan Square', 'Indore Railway Station'], imageUrl: 'https://images.pexels.com/photos/3861976/pexels-photo-3861976.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/geetabhawan_indore_3861976', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Rajendra Nagar', city: null, cityName: 'Indore', zone: 'West', landmarks: ['Rajendra Nagar Market', 'Lal Bagh Palace'], imageUrl: 'https://images.pexels.com/photos/2582927/pexels-photo-2582927.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/rajendranagar_indore_2582927', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
   
-  // Jaipur areas
-  { city: 'Jaipur', name: 'C Scheme', zone: 'Central', landmarks: ['Market', 'Hospitals'] },
-  { city: 'Jaipur', name: 'Tonk Road', zone: 'East', landmarks: ['University', 'Colleges'] },
-  { city: 'Jaipur', name: 'Vaishali Nagar', zone: 'North', landmarks: ['Park', 'Market'] },
-  { city: 'Jaipur', name: 'Tilak Nagar', zone: 'South', landmarks: ['Market', 'Schools'] },
-  { city: 'Jaipur', name: 'JP Road', zone: 'West', landmarks: ['Hospital', 'Station'] },
+  // Jaipur Areas
+  { name: 'Mansarovar', city: null, cityName: 'Jaipur', zone: 'South', landmarks: ['Mansarovar Market', 'JECRC College'], imageUrl: 'https://images.pexels.com/photos/1549248/pexels-photo-1549248.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/mansarovar_jaipur_1549248', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Malviya Nagar', city: null, cityName: 'Jaipur', zone: 'Central', landmarks: ['Malviya Nagar Market', 'World Trade Park'], imageUrl: 'https://images.pexels.com/photos/145845/pexels-photo-145845.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/malviyanagar_jaipur_145845', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Vaishali Nagar', city: null, cityName: 'Jaipur', zone: 'West', landmarks: ['Vaishali Nagar Market', 'Jaipur Airport'], imageUrl: 'https://images.pexels.com/photos/302769/pexels-photo-302769.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/vaishalinagar_jaipur_302769', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Raja Park', city: null, cityName: 'Jaipur', zone: 'East', landmarks: ['Raja Park Market', 'Birla Temple'], imageUrl: 'https://images.pexels.com/photos/1267305/pexels-photo-1267305.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/rajapark_jaipur_1267305', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Jhotwara', city: null, cityName: 'Jaipur', zone: 'North', landmarks: ['Jhotwara Market', 'Jhotwara Industrial Area'], imageUrl: 'https://images.pexels.com/photos/276718/pexels-photo-276718.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/jhotwara_jaipur_276718', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
   
-  // Delhi areas
-  { city: 'Delhi', name: 'North Campus', zone: 'North', landmarks: ['Delhi University', 'Metro'] },
-  { city: 'Delhi', name: 'South Delhi', zone: 'South', landmarks: ['Market', 'Metro'] },
-  { city: 'Delhi', name: 'East Delhi', zone: 'East', landmarks: ['Hospital', 'Market'] },
-  { city: 'Delhi', name: 'West Delhi', zone: 'West', landmarks: ['Metro', 'Station'] },
-  { city: 'Delhi', name: 'Central Delhi', zone: 'Central', landmarks: ['Market', 'Offices'] },
+  // Delhi Areas
+  { name: 'Dwarka', city: null, cityName: 'Delhi', zone: 'South West', landmarks: ['Dwarka Sector 21', 'Dwarka Metro Station'], imageUrl: 'https://images.pexels.com/photos/3861978/pexels-photo-3861978.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/dwarka_delhi_3861978', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Rohini', city: null, cityName: 'Delhi', zone: 'North West', landmarks: ['Rohini Sector 10', 'Rithala Metro Station'], imageUrl: 'https://images.pexels.com/photos/3861968/pexels-photo-3861968.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/rohini_delhi_3861968', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Lajpat Nagar', city: null, cityName: 'Delhi', zone: 'South', landmarks: ['Lajpat Nagar Market', 'Lajpat Nagar Metro Station'], imageUrl: 'https://images.pexels.com/photos/279574/pexels-photo-279574.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/lajpatnagar_delhi_279574', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Karol Bagh', city: null, cityName: 'Delhi', zone: 'Central', landmarks: ['Karol Bagh Market', 'Karol Bagh Metro Station'], imageUrl: 'https://images.pexels.com/photos/279710/pexels-photo-279710.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/karolbagh_delhi_279710', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Mayur Vihar', city: null, cityName: 'Delhi', zone: 'East', landmarks: ['Mayur Vihar Phase 1', 'Mayur Vihar Metro Station'], imageUrl: 'https://images.pexels.com/photos/271816/pexels-photo-271816.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/mayurvihaar_delhi_271816', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
   
-  // Bhopal areas
-  { city: 'Bhopal', name: 'Hoshangabad Road', zone: 'Central', landmarks: ['Market', 'Hospital'] },
-  { city: 'Bhopal', name: 'New Market', zone: 'Central', landmarks: ['Shopping', 'Restaurants'] },
-  { city: 'Bhopal', name: 'Arera Colony', zone: 'South', landmarks: ['Park', 'School'] },
+  // Bhopal Areas
+  { name: 'MP Nagar', city: null, cityName: 'Bhopal', zone: 'Central', landmarks: ['MP Nagar Market', 'Bhopal Railway Station'], imageUrl: 'https://images.pexels.com/photos/271812/pexels-photo-271812.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/mpnagar_bhopal_271812', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Arera Colony', city: null, cityName: 'Bhopal', zone: 'South', landmarks: ['Arera Colony Market', 'BHEL Township'], imageUrl: 'https://images.pexels.com/photos/271807/pexels-photo-271807.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/areracolony_bhopal_271807', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'New Market', city: null, cityName: 'Bhopal', zone: 'North', landmarks: ['New Market', 'Jahangirabad'], imageUrl: 'https://images.pexels.com/photos/271824/pexels-photo-271824.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/newmarket_bhopal_271824', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Habibganj', city: null, cityName: 'Bhopal', zone: 'East', landmarks: ['Habibganj Railway Station', 'DB City Mall'], imageUrl: 'https://images.pexels.com/photos/271819/pexels-photo-271819.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/habibganj_bhopal_271819', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Kolar', city: null, cityName: 'Bhopal', zone: 'West', landmarks: ['Kolar Road', 'Bhoj University'], imageUrl: 'https://images.pexels.com/photos/271811/pexels-photo-271811.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/kolar_bhopal_271811', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
   
-  // Nagpur areas
-  { city: 'Nagpur', name: 'Sitabuldi', zone: 'Central', landmarks: ['Fort', 'Market'] },
-  { city: 'Nagpur', name: 'South Nagpur', zone: 'South', landmarks: ['University', 'Market'] },
+  // Nagpur Areas
+  { name: 'Civil Lines', city: null, cityName: 'Nagpur', zone: 'Central', landmarks: ['Civil Lines', 'Nagpur Railway Station'], imageUrl: 'https://images.pexels.com/photos/271826/pexels-photo-271826.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/civillines_nagpur_271826', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Sadar', city: null, cityName: 'Nagpur', zone: 'North', landmarks: ['Sadar Market', 'Rani Durgavati Museum'], imageUrl: 'https://images.pexels.com/photos/271823/pexels-photo-271823.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/sadar_nagpur_271823', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Dharampeth', city: null, cityName: 'Nagpur', zone: 'South', landmarks: ['Dharampeth Market', 'Japanese Garden'], imageUrl: 'https://images.pexels.com/photos/271825/pexels-photo-271825.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/dharampeth_nagpur_271825', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Wardha Road', city: null, cityName: 'Nagpur', zone: 'East', landmarks: ['Wardha Road', 'Nagpur Airport'], imageUrl: 'https://images.pexels.com/photos/271814/pexels-photo-271814.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/wardharoad_nagpur_271814', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Laxmi Nagar', city: null, cityName: 'Nagpur', zone: 'West', landmarks: ['Laxmi Nagar Market', 'Kalamna Lake'], imageUrl: 'https://images.pexels.com/photos/271813/pexels-photo-271813.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/laxminagar_nagpur_271813', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
   
-  // Mumbai areas
-  { city: 'Mumbai', name: 'Fort', zone: 'Central', landmarks: ['Market', 'Station'] },
-  { city: 'Mumbai', name: 'Bandra', zone: 'North', landmarks: ['Station', 'Market'] },
+  // Jodhpur Areas
+  { name: 'Paota', city: null, cityName: 'Jodhpur', zone: 'North', landmarks: ['Paota Circle', 'Jodhpur Railway Station'], imageUrl: 'https://images.pexels.com/photos/271820/pexels-photo-271820.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/paota_jodhpur_271820', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Sardarpura', city: null, cityName: 'Jodhpur', zone: 'Central', landmarks: ['Sardarpura Circle', 'Sardarpura Market'], imageUrl: 'https://images.pexels.com/photos/271815/pexels-photo-271815.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/sardarpura_jodhpur_271815', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Shastri Nagar', city: null, cityName: 'Jodhpur', zone: 'South', landmarks: ['Shastri Nagar Market', 'IIT Jodhpur'], imageUrl: 'https://images.pexels.com/photos/271822/pexels-photo-271822.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/shastrinagar_jodhpur_271822', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Basni', city: null, cityName: 'Jodhpur', zone: 'East', landmarks: ['Basni Industrial Area', 'Basni Market'], imageUrl: 'https://images.pexels.com/photos/271821/pexels-photo-271821.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/basni_jodhpur_271821', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Ratanada', city: null, cityName: 'Jodhpur', zone: 'West', landmarks: ['Ratanada Palace', 'Kaylana Lake'], imageUrl: 'https://images.pexels.com/photos/271818/pexels-photo-271818.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/ratanada_jodhpur_271818', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
   
-  // Bangalore areas
-  { city: 'Bangalore', name: 'Indiranagar', zone: 'East', landmarks: ['Market', 'Tech Park'] },
-  { city: 'Bangalore', name: 'Whitefield', zone: 'East', landmarks: ['Tech Park', 'Station'] }
+  // Mumbai Areas
+  { name: 'Andheri', city: null, cityName: 'Mumbai', zone: 'West', landmarks: ['Andheri Railway Station', 'Versova Beach'], imageUrl: 'https://images.pexels.com/photos/1486221/pexels-photo-1486221.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/andheri_mumbai_1486221', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Bandra', city: null, cityName: 'Mumbai', zone: 'North West', landmarks: ['Bandra-Worli Sea Link', 'Bandra Railway Station'], imageUrl: 'https://images.pexels.com/photos/1549247/pexels-photo-1549247.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/bandra_mumbai_1549247', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Dadar', city: null, cityName: 'Mumbai', zone: 'Central', landmarks: ['Dadar Railway Station', 'Shivaji Park'], imageUrl: 'https://images.pexels.com/photos/1486223/pexels-photo-1486223.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/dadar_mumbai_1486223', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Powai', city: null, cityName: 'Mumbai', zone: 'North East', landmarks: ['IIT Bombay', 'Powai Lake'], imageUrl: 'https://images.pexels.com/photos/1549250/pexels-photo-1549250.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/powai_mumbai_1549250', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' },
+  { name: 'Goregaon', city: null, cityName: 'Mumbai', zone: 'North', landmarks: ['Goregaon Railway Station', 'Film City'], imageUrl: 'https://images.pexels.com/photos/1549249/pexels-photo-1549249.jpeg?auto=compress&cs=tinysrgb&w=400', imagePublicId: 'roomhy/areas/goregaon_mumbai_1549249', propertyCount: 10, status: 'Active', createdBy: 'superadmin', lastModifiedBy: 'superadmin' }
 ];
 
 async function seedCitiesAndAreas() {
-  try {
-    console.log('🔗 Connecting to MongoDB Atlas...');
-    await connectDB();
-    console.log('✅ Connected to MongoDB');
+    try {
+        await connectDB();
 
-    // Clear existing
-    await City.deleteMany({});
-    await Area.deleteMany({});
-    console.log('🗑️  Cleared existing cities and areas');
+        console.log('🌱 Starting cities and areas seeding...');
 
-    // Seed cities
-    const cities = await City.insertMany(citiesData);
-    console.log(`✅ Seeded ${cities.length} cities`);
+        // Clear existing data
+        await City.deleteMany({});
+        await Area.deleteMany({});
+        console.log('Cleared existing cities and areas');
 
-    // Seed areas
-    const areas = await Area.insertMany(areasData);
-    console.log(`✅ Seeded ${areas.length} areas`);
+        // Insert cities
+        const insertedCities = await City.insertMany(citiesData);
+        console.log(`✅ Inserted ${insertedCities.length} cities`);
 
-    await mongoose.disconnect();
-    console.log('✅ Database seeding completed');
-    process.exit(0);
-  } catch (error) {
-    console.error('❌ Error seeding database:', error.message);
-    process.exit(1);
-  }
+        // Create city name to ID mapping
+        const cityMap = {};
+        insertedCities.forEach(city => {
+            cityMap[city.name] = city._id;
+        });
+
+        // Update areas with city IDs
+        const areasWithCityIds = areasData.map(area => ({
+            ...area,
+            city: cityMap[area.cityName],
+            cityId: cityMap[area.cityName]
+        }));
+
+        // Insert areas
+        const insertedAreas = await Area.insertMany(areasWithCityIds);
+        console.log(`✅ Inserted ${insertedAreas.length} areas`);
+
+        console.log('🎉 Seed data inserted successfully!');
+        process.exit(0);
+    } catch (error) {
+        console.error('❌ Error seeding data:', error);
+        process.exit(1);
+    }
 }
 
-seedCitiesAndAreas();
+if (require.main === module) {
+    seedCitiesAndAreas();
+}
+
+module.exports = seedCitiesAndAreas;

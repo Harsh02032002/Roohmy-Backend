@@ -1,417 +1,269 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const connectDB = require('../config/database');
 const mongoose = require('mongoose');
 
-// 4 High-quality Pexels images per property type
-const propertyImages = {
-  pg: [
-    'https://images.pexels.com/photos/1571468/pexels-photo-1571468.jpeg?auto=compress&cs=tinysrgb&w=800',
-    'https://images.pexels.com/photos/164595/pexels-photo-164595.jpeg?auto=compress&cs=tinysrgb&w=800',
-    'https://images.pexels.com/photos/1457842/pexels-photo-1457842.jpeg?auto=compress&cs=tinysrgb&w=800',
-    'https://images.pexels.com/photos/1454806/pexels-photo-1454806.jpeg?auto=compress&cs=tinysrgb&w=800'
-  ],
-  hostel: [
-    'https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg?auto=compress&cs=tinysrgb&w=800',
-    'https://images.pexels.com/photos/2029719/pexels-photo-2029719.jpeg?auto=compress&cs=tinysrgb&w=800',
-    'https://images.pexels.com/photos/210604/pexels-photo-210604.jpeg?auto=compress&cs=tinysrgb&w=800',
-    'https://images.pexels.com/photos/271643/pexels-photo-271643.jpeg?auto=compress&cs=tinysrgb&w=800'
-  ],
-  flat: [
-    'https://images.pexels.com/photos/276724/pexels-photo-276724.jpeg?auto=compress&cs=tinysrgb&w=800',
-    'https://images.pexels.com/photos/279746/pexels-photo-279746.jpeg?auto=compress&cs=tinysrgb&w=800',
-    'https://images.pexels.com/photos/271660/pexels-photo-271660.jpeg?auto=compress&cs=tinysrgb&w=800',
-    'https://images.pexels.com/photos/2459/pexels-photo-2459.jpeg?auto=compress&cs=tinysrgb&w=800'
-  ]
-};
+const Property = require('../models/Property');
+const WebsitePropertyData = require('../models/WebsitePropertyData');
+const City = require('../models/City');
+const Area = require('../models/Area');
 
-// Define ApprovedProperty schema inline
-const ApprovedPropertySchema = new mongoose.Schema({
-  visitId: { type: String, required: true, unique: true },
-  propertyInfo: {
-    name: { type: String, required: true },
-    propertyType: String,
-    area: String,
-    city: String,
-    rent: Number,
-    genderSuitability: String,
-    photos: [String],
-    totalSeats: Number,
-    location: {
-      type: { type: String, default: 'Point' },
-      coordinates: [Number] // [longitude, latitude]
-    }
-  },
-  status: { type: String, enum: ['approved', 'live', 'offline'], default: 'approved' },
-  isLiveOnWebsite: { type: Boolean, default: true },
-  nearbyColleges: [String],
-  professionalPhotos: [String],
-  submittedAt: { type: Date },
-  approvedAt: { type: Date, default: Date.now },
-  generatedCredentials: {
-    loginId: String,
-    password: String,
-    ownerName: String
-  },
-  approvedBy: String,
-  createdAt: { type: Date, default: Date.now }
-});
+// Sample property data templates
+const propertyTypes = ['PG', 'Flat', 'Hostel', 'Room'];
+const genders = ['Male', 'Female', 'Both'];
+const furnishingTypes = ['Unfurnished', 'Semi-Furnished', 'Fully-Furnished'];
 
-// Add geospatial index for location-based queries
-ApprovedPropertySchema.index({ 'propertyInfo.location': '2dsphere' });
-
-const ApprovedProperty = mongoose.model('ApprovedProperty', ApprovedPropertySchema);
-
-const properties = [
-  // Kota Properties
-  { 
-    visitId: 'KOTA-PG-001', 
-    propertyInfo: { 
-      name: 'Cozy PG North', 
-      propertyType: 'PG', 
-      area: 'Dadabari', 
-      city: 'Kota', 
-      rent: 8000, 
-      genderSuitability: 'Co-ed',
-      totalSeats: 15,
-      photos: ['https://images.pexels.com/photos/1571468/pexels-photo-1571468.jpeg?auto=compress&cs=tinysrgb&w=600'],
-      location: { type: 'Point', coordinates: [75.8648, 25.2138] }
-    },
-    nearbyColleges: ['Allen Career Institute', 'Resonance Eduventures', 'Bansal Classes', 'Motion IIT-JEE', 'Vibrant Academy', 'Nucleus Education', 'Etoos India', 'Carrer Point', 'Allen Samanvaya'],
-    generatedCredentials: { loginId: 'kota_pg_001', ownerName: 'Rajesh Singh' }
-  },
-  { 
-    visitId: 'KOTA-HOSTEL-001', 
-    propertyInfo: { 
-      name: 'Student Hostel Central', 
-      propertyType: 'Hostel', 
-      area: 'Nayapura', 
-      city: 'Kota', 
-      rent: 6500, 
-      genderSuitability: 'Male',
-      totalSeats: 30,
-      photos: ['https://images.pexels.com/photos/1457842/pexels-photo-1457842.jpeg?auto=compress&cs=tinysrgb&w=600'],
-      location: { type: 'Point', coordinates: [75.8396, 25.1825] }
-    },
-    nearbyColleges: ['Allen Career Institute', 'Resonance Eduventures', 'Vidyamandir Classes', 'Akash Institute', 'Carrer Point', 'Bansal Classes', 'Etoos India', 'Vibrant Academy'],
-    generatedCredentials: { loginId: 'kota_hostel_001', ownerName: 'Priya Sharma' }
-  },
-  { 
-    visitId: 'KOTA-FLAT-001', 
-    propertyInfo: { 
-      name: 'Premium Shared Room', 
-      propertyType: 'Flat', 
-      area: 'Mahavir Nagar', 
-      city: 'Kota', 
-      rent: 9500, 
-      genderSuitability: 'Co-ed',
-      totalSeats: 4,
-      photos: ['https://images.pexels.com/photos/2988860/pexels-photo-2988860.jpeg?auto=compress&cs=tinysrgb&w=600'],
-      location: { type: 'Point', coordinates: [75.8500, 25.2000] }
-    },
-    nearbyColleges: ['Bansal Classes', 'Motion IIT-JEE', 'Vidyamandir Classes', 'Allen Samanvaya', 'Resonance Eduventures', 'Etoos India'],
-    generatedCredentials: { loginId: 'kota_flat_001', ownerName: 'Rohan Verma' }
-  },
-
-  // Indore Properties
-  { 
-    visitId: 'INDORE-PG-001', 
-    propertyInfo: { 
-      name: 'Modern PG Indore', 
-      propertyType: 'PG', 
-      area: 'Rajwada', 
-      city: 'Indore', 
-      rent: 7000, 
-      genderSuitability: 'Female',
-      totalSeats: 20,
-      photos: ['https://images.pexels.com/photos/1743229/pexels-photo-1743229.jpeg?auto=compress&cs=tinysrgb&w=600'],
-      location: { type: 'Point', coordinates: [75.8577, 22.7196] }
-    },
-    nearbyColleges: ['IIT Indore', 'MITS Indore', 'Devi Ahilya University', 'Indian Institute of Management Indore', 'Maharaja Ranjit Singh College', 'Acropolis Institute'],
-    generatedCredentials: { loginId: 'indore_pg_001', ownerName: 'Anjali Patel' }
-  },
-  { 
-    visitId: 'INDORE-HOSTEL-001', 
-    propertyInfo: { 
-      name: 'Budget Hostel Indore', 
-      propertyType: 'Hostel', 
-      area: 'Khajrana', 
-      city: 'Indore', 
-      rent: 5500, 
-      genderSuitability: 'Male',
-      totalSeats: 25,
-      photos: ['https://images.pexels.com/photos/1457842/pexels-photo-1457842.jpeg?auto=compress&cs=tinysrgb&w=600'],
-      location: { type: 'Point', coordinates: [75.9013, 22.7545] }
-    },
-    nearbyColleges: ['MITS Indore', 'Prestige Institute of Management', 'Choithram School', 'Indore Institute of Science and Technology', 'Sushila Devi Bansal College'],
-    generatedCredentials: { loginId: 'indore_hostel_001', ownerName: 'Vikram Singh' }
-  },
-
-  // Jaipur Properties
-  { 
-    visitId: 'JAIPUR-PG-001', 
-    propertyInfo: { 
-      name: 'Pink City PG', 
-      propertyType: 'PG', 
-      area: 'C Scheme', 
-      city: 'Jaipur', 
-      rent: 9000, 
-      genderSuitability: 'Female',
-      totalSeats: 18,
-      photos: ['https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=600'],
-      location: { type: 'Point', coordinates: [75.7873, 26.9124] }
-    },
-    nearbyColleges: ['MNIT Jaipur', 'Jaipur University', 'Manipal University', 'Amity University Jaipur', 'JECRC University', 'Poornima College'],
-    generatedCredentials: { loginId: 'jaipur_pg_001', ownerName: 'Neha Singh' }
-  },
-  { 
-    visitId: 'JAIPUR-FLAT-001', 
-    propertyInfo: { 
-      name: 'Studio Apartment Jaipur', 
-      propertyType: 'Flat', 
-      area: 'Tonk Road', 
-      city: 'Jaipur', 
-      rent: 12000, 
-      genderSuitability: 'Co-ed',
-      totalSeats: 2,
-      photos: ['https://images.pexels.com/photos/1643383/pexels-photo-1643383.jpeg?auto=compress&cs=tinysrgb&w=600'],
-      location: { type: 'Point', coordinates: [75.8050, 26.8500] }
-    },
-    nearbyColleges: ['IIT Jodhpur', 'MNIT Jaipur', 'ICFAI Jaipur', 'Jaipur National University', 'Stani Memorial College'],
-    generatedCredentials: { loginId: 'jaipur_flat_001', ownerName: 'Arun Kumar' }
-  },
-
-  // Delhi Properties
-  { 
-    visitId: 'DELHI-PG-001', 
-    propertyInfo: { 
-      name: 'North Campus PG', 
-      propertyType: 'PG', 
-      area: 'North Campus', 
-      city: 'Delhi', 
-      rent: 10000, 
-      genderSuitability: 'Female',
-      totalSeats: 12,
-      photos: ['https://images.pexels.com/photos/1571463/pexels-photo-1571463.jpeg?auto=compress&cs=tinysrgb&w=600'],
-      location: { type: 'Point', coordinates: [77.2090, 28.6139] }
-    },
-    nearbyColleges: ['Delhi University', 'AIIMS Delhi', 'IIT Delhi', 'IIIT Delhi'],
-    generatedCredentials: { loginId: 'delhi_pg_001', ownerName: 'Priya Gupt' }
-  },
-  { 
-    visitId: 'DELHI-FLAT-001', 
-    propertyInfo: { 
-      name: 'South Delhi Flat', 
-      propertyType: 'Flat', 
-      area: 'South Delhi', 
-      city: 'Delhi', 
-      rent: 15000, 
-      genderSuitability: 'Co-ed',
-      totalSeats: 3,
-      photos: ['https://images.pexels.com/photos/2988860/pexels-photo-2988860.jpeg?auto=compress&cs=tinysrgb&w=600'],
-      location: { type: 'Point', coordinates: [77.2274, 28.5700] }
-    },
-    nearbyColleges: ['Delhi Technological University', 'IIT Delhi', 'IIIT Delhi'],
-    generatedCredentials: { loginId: 'delhi_flat_001', ownerName: 'Vikram Sharma' }
-  },
-
-  // Bhopal Properties
-  { 
-    visitId: 'BHOPAL-PG-001', 
-    propertyInfo: { 
-      name: 'Lake City PG', 
-      propertyType: 'PG', 
-      area: 'Hoshangabad Road', 
-      city: 'Bhopal', 
-      rent: 6500, 
-      genderSuitability: 'Co-ed',
-      totalSeats: 16,
-      photos: ['https://images.pexels.com/photos/1571468/pexels-photo-1571468.jpeg?auto=compress&cs=tinysrgb&w=600'],
-      location: { type: 'Point', coordinates: [77.4126, 23.2599] }
-    },
-    nearbyColleges: ['Bhopal University', 'IISER Bhopal', 'Barkatullah University'],
-    generatedCredentials: { loginId: 'bhopal_pg_001', ownerName: 'Rajiv Jain' }
-  },
-
-  // Nagpur Properties
-  { 
-    visitId: 'NAGPUR-PG-001', 
-    propertyInfo: { 
-      name: 'Orange City PG', 
-      propertyType: 'PG', 
-      area: 'Sitabuldi', 
-      city: 'Nagpur', 
-      rent: 7500, 
-      genderSuitability: 'Female',
-      totalSeats: 14,
-      photos: ['https://images.pexels.com/photos/1743229/pexels-photo-1743229.jpeg?auto=compress&cs=tinysrgb&w=600'],
-      location: { type: 'Point', coordinates: [79.0821, 21.1458] }
-    },
-    nearbyColleges: ['VNIT Nagpur', 'RCOEM Nagpur', 'Nagpur University'],
-    generatedCredentials: { loginId: 'nagpur_pg_001', ownerName: 'Sunita Desai' }
-  },
-
-  // Mumbai Properties
-  { 
-    visitId: 'MUMBAI-HOSTEL-001', 
-    propertyInfo: { 
-      name: 'Mumbai Hostel Fort', 
-      propertyType: 'Hostel', 
-      area: 'Fort', 
-      city: 'Mumbai', 
-      rent: 8500, 
-      genderSuitability: 'Male',
-      totalSeats: 20,
-      photos: ['https://images.pexels.com/photos/1457842/pexels-photo-1457842.jpeg?auto=compress&cs=tinysrgb&w=600'],
-      location: { type: 'Point', coordinates: [72.8258, 18.9322] }
-    },
-    nearbyColleges: ['IIT Bombay', 'IIMC Mumbai', 'Mumbai University', 'St. Xaviers College'],
-    generatedCredentials: { loginId: 'mumbai_hostel_001', ownerName: 'Ashok Pillai' }
-  },
-
-  // Bangalore Properties
-  { 
-    visitId: 'BANGALORE-PG-001', 
-    propertyInfo: { 
-      name: 'Tech Park PG Bangalore', 
-      propertyType: 'PG', 
-      area: 'Whitefield', 
-      city: 'Bangalore', 
-      rent: 11000, 
-      genderSuitability: 'Co-ed',
-      totalSeats: 22,
-      photos: ['https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=600'],
-      location: { type: 'Point', coordinates: [77.7500, 12.9700] }
-    },
-    nearbyColleges: ['IIT Bangalore', 'IISC Bangalore', 'NIT Karnataka', 'Christ University'],
-    generatedCredentials: { loginId: 'bangalore_pg_001', ownerName: 'Arjun Kumar' }
-  },
-
-  // Additional Kota Properties - Near Real Coaching Institutes
-  { 
-    visitId: 'KOTA-PG-002', 
-    propertyInfo: { 
-      name: 'Allen View PG', 
-      propertyType: 'PG', 
-      area: 'Nayapura', 
-      city: 'Kota', 
-      rent: 7500, 
-      genderSuitability: 'Female',
-      totalSeats: 18,
-      photos: ['https://images.pexels.com/photos/1571468/pexels-photo-1571468.jpeg?auto=compress&cs=tinysrgb&w=600'],
-      location: { type: 'Point', coordinates: [75.8400, 25.1820] }
-    },
-    nearbyColleges: ['Allen Career Institute', 'Allen Samanvaya', 'Nayapura Market'],
-    generatedCredentials: { loginId: 'kota_pg_002', ownerName: 'Suresh Kumar' }
-  },
-  { 
-    visitId: 'KOTA-HOSTEL-002', 
-    propertyInfo: { 
-      name: 'Resonance Near Hostel', 
-      propertyType: 'Hostel', 
-      area: 'Indra Vihar', 
-      city: 'Kota', 
-      rent: 6000, 
-      genderSuitability: 'Male',
-      totalSeats: 35,
-      photos: ['https://images.pexels.com/photos/1457842/pexels-photo-1457842.jpeg?auto=compress&cs=tinysrgb&w=600'],
-      location: { type: 'Point', coordinates: [75.8420, 25.1805] }
-    },
-    nearbyColleges: ['Resonance Eduventures', 'Bansal Classes', 'Vibrant Academy', 'Motion IIT-JEE'],
-    generatedCredentials: { loginId: 'kota_hostel_002', ownerName: 'Ramesh Patel' }
-  },
-  { 
-    visitId: 'KOTA-PG-003', 
-    propertyInfo: { 
-      name: 'Vibrant Stay PG', 
-      propertyType: 'PG', 
-      area: 'Rajiv Gandhi Nagar', 
-      city: 'Kota', 
-      rent: 8500, 
-      genderSuitability: 'Co-ed',
-      totalSeats: 20,
-      photos: ['https://images.pexels.com/photos/1743229/pexels-photo-1743229.jpeg?auto=compress&cs=tinysrgb&w=600'],
-      location: { type: 'Point', coordinates: [75.8380, 25.1780] }
-    },
-    nearbyColleges: ['Vibrant Academy', 'Nucleus Education', 'Etoos India', 'Carrer Point'],
-    generatedCredentials: { loginId: 'kota_pg_003', ownerName: 'Meena Sharma' }
-  },
-
-  // Additional Delhi Properties - Near Delhi University
-  { 
-    visitId: 'DELHI-HOSTEL-002', 
-    propertyInfo: { 
-      name: 'DU North Campus Hostel', 
-      propertyType: 'Hostel', 
-      area: 'Kamla Nagar', 
-      city: 'Delhi', 
-      rent: 12000, 
-      genderSuitability: 'Female',
-      totalSeats: 25,
-      photos: ['https://images.pexels.com/photos/1457842/pexels-photo-1457842.jpeg?auto=compress&cs=tinysrgb&w=600'],
-      location: { type: 'Point', coordinates: [77.2100, 28.6800] }
-    },
-    nearbyColleges: ['Delhi University', 'Hindu College', 'Ramjas College', 'St. Stephen College'],
-    generatedCredentials: { loginId: 'delhi_hostel_002', ownerName: 'Dr. Anita Gupta' }
-  },
-  { 
-    visitId: 'DELHI-PG-002', 
-    propertyInfo: { 
-      name: 'IIT Delhi View PG', 
-      propertyType: 'PG', 
-      area: 'Hauz Khas', 
-      city: 'Delhi', 
-      rent: 14000, 
-      genderSuitability: 'Male',
-      totalSeats: 15,
-      photos: ['https://images.pexels.com/photos/2988860/pexels-photo-2988860.jpeg?auto=compress&cs=tinysrgb&w=600'],
-      location: { type: 'Point', coordinates: [77.1950, 28.5450] }
-    },
-    nearbyColleges: ['IIT Delhi', 'IIIT Delhi', 'AIIMS Delhi'],
-    generatedCredentials: { loginId: 'delhi_pg_002', ownerName: 'Prof. Rajesh Kumar' }
-  }
+// Sample property names
+const propertyNames = [
+  'Cozy Stay', 'Dream Home', 'Peaceful Living', 'Modern Apartment', 'Luxury Residence',
+  'Comfort Zone', 'Green Valley', 'Sunshine Apartments', 'Royal Residency', 'Elite Homes',
+  'Paradise Place', 'Golden Gate', 'Silver Springs', 'Blue Moon', 'Red Rose',
+  'White House', 'Black Pearl', 'Pink Palace', 'Purple Hills', 'Orange Grove'
 ];
 
-async function seedProperties() {
-  try {
-    console.log('🔗 Connecting to MongoDB Atlas...');
-    await connectDB();
-    console.log('✅ Connected to MongoDB');
+// Sample descriptions
+const descriptions = [
+  'Well-maintained property with all modern amenities',
+  'Spacious and airy rooms with natural lighting',
+  'Prime location with easy access to transportation',
+  'Clean and hygienic environment with regular maintenance',
+  'Secure property with 24/7 surveillance',
+  'Peaceful neighborhood perfect for students',
+  'Modern facilities with high-speed internet',
+  'Comfortable living space with friendly atmosphere',
+  'Affordable accommodation with quality services',
+  'Premium property with luxury amenities'
+];
 
-    // Clear existing
-    await ApprovedProperty.deleteMany({});
-    console.log('🗑️  Cleared existing properties');
+// Sample amenities
+const amenities = [
+  'WiFi', 'Parking', 'Security', 'Power Backup', 'Water Supply',
+  'Housekeeping', 'Laundry', 'Gym', 'CCTV', 'Fire Safety'
+];
 
-    // Add professionalPhotos to each property based on type
-    const propertiesWithImages = properties.map(p => {
-      const type = p.propertyInfo.propertyType?.toLowerCase() || 'pg';
-      return {
-        ...p,
-        professionalPhotos: propertyImages[type] || propertyImages.pg
-      };
-    });
-
-    // Seed properties
-    const createdProperties = await ApprovedProperty.insertMany(propertiesWithImages);
-    console.log(`✅ Seeded ${createdProperties.length} properties with 4 images each:`);
+// Generate random properties for areas
+function generatePropertiesForArea(area, city, count = 10) {
+  const properties = [];
+  
+  for (let i = 0; i < count; i++) {
+    const propertyType = propertyTypes[Math.floor(Math.random() * propertyTypes.length)];
+    const gender = genders[Math.floor(Math.random() * genders.length)];
+    const furnishing = furnishingTypes[Math.floor(Math.random() * furnishingTypes.length)];
+    const propertyName = `${propertyNames[Math.floor(Math.random() * propertyNames.length)]} ${area.name}`;
     
-    const grouped = {};
-    createdProperties.forEach(p => {
-      const city = p.propertyInfo.city;
-      if (!grouped[city]) grouped[city] = 0;
-      grouped[city]++;
-    });
+    // Generate random price based on property type
+    let basePrice;
+    switch (propertyType) {
+      case 'PG':
+        basePrice = Math.floor(Math.random() * 10000) + 5000; // 5000-15000
+        break;
+      case 'Flat':
+        basePrice = Math.floor(Math.random() * 20000) + 10000; // 10000-30000
+        break;
+      case 'Hostel':
+        basePrice = Math.floor(Math.random() * 8000) + 4000; // 4000-12000
+        break;
+      case 'Room':
+        basePrice = Math.floor(Math.random() * 12000) + 6000; // 6000-18000
+        break;
+    }
     
-    Object.entries(grouped).forEach(([city, count]) => {
-      console.log(`   - ${city}: ${count} properties`);
+    // Generate random amenities (3-7 amenities)
+    const selectedAmenities = [];
+    const amenitiesCount = Math.floor(Math.random() * 5) + 3;
+    const shuffledAmenities = [...amenities].sort(() => 0.5 - Math.random());
+    for (let j = 0; j < amenitiesCount; j++) {
+      selectedAmenities.push(shuffledAmenities[j]);
+    }
+    
+    properties.push({
+      title: propertyName,
+      description: descriptions[Math.floor(Math.random() * descriptions.length)],
+      address: `${area.name}, ${city.name}, ${city.state}`,
+      locationCode: `${city.name.substring(0, 3).toUpperCase()}-${area.name.substring(0, 3).toUpperCase()}-${Math.floor(Math.random() * 999)}`,
+      latitude: area.cityName === 'Kota' ? 25.2138 + (Math.random() - 0.5) * 0.1 :
+                area.cityName === 'Indore' ? 22.7196 + (Math.random() - 0.5) * 0.1 :
+                area.cityName === 'Jaipur' ? 26.9124 + (Math.random() - 0.5) * 0.1 :
+                area.cityName === 'Delhi' ? 28.6139 + (Math.random() - 0.5) * 0.1 :
+                area.cityName === 'Bhopal' ? 23.2599 + (Math.random() - 0.5) * 0.1 :
+                area.cityName === 'Nagpur' ? 21.1458 + (Math.random() - 0.5) * 0.1 :
+                area.cityName === 'Jodhpur' ? 26.2389 + (Math.random() - 0.5) * 0.1 :
+                19.0760 + (Math.random() - 0.5) * 0.1,
+      longitude: area.cityName === 'Kota' ? 75.8648 + (Math.random() - 0.5) * 0.1 :
+                 area.cityName === 'Indore' ? 75.8577 + (Math.random() - 0.5) * 0.1 :
+                 area.cityName === 'Jaipur' ? 75.7873 + (Math.random() - 0.5) * 0.1 :
+                 area.cityName === 'Delhi' ? 77.2090 + (Math.random() - 0.5) * 0.1 :
+                 area.cityName === 'Bhopal' ? 77.4126 + (Math.random() - 0.5) * 0.1 :
+                 area.cityName === 'Nagpur' ? 79.0882 + (Math.random() - 0.5) * 0.1 :
+                 area.cityName === 'Jodhpur' ? 73.0243 + (Math.random() - 0.5) * 0.1 :
+                 72.8777 + (Math.random() - 0.5) * 0.1,
+      owner: null,
+      ownerLoginId: `owner${Math.floor(Math.random() * 10000)}`,
+      status: 'active',
+      isPublished: true,
+      createdAt: new Date()
     });
-
-    await mongoose.disconnect();
-    console.log('✅ Property seeding completed');
-    process.exit(0);
-  } catch (error) {
-    console.error('❌ Error seeding properties:', error.message);
-    process.exit(1);
   }
+  
+  return properties;
 }
 
-seedProperties();
+async function seedProperties() {
+    try {
+        await connectDB();
+
+        console.log('🌱 Starting properties seeding...');
+
+        // Get all cities and areas
+        const cities = await City.find({});
+        const areas = await Area.find({}).populate('city');
+        
+        console.log(`Found ${cities.length} cities and ${areas.length} areas`);
+
+        // Clear existing properties
+        await Property.deleteMany({});
+        console.log('Cleared existing properties');
+
+        // Generate properties for each area
+        let allProperties = [];
+        
+        console.log('Debugging area-city mapping...');
+        console.log('First area object:', JSON.stringify(areas[0], null, 2));
+        
+        for (const area of areas) {
+            // Handle both populated city object and city ID reference
+            let cityId;
+            if (area.city && typeof area.city === 'object' && area.city._id) {
+                cityId = area.city._id.toString();
+            } else if (area.city) {
+                cityId = area.city.toString();
+            } else {
+                console.log(`Area ${area.name} has no city reference`);
+                continue;
+            }
+            
+            const city = cities.find(c => c._id.toString() === cityId);
+            if (city) {
+                const areaProperties = generatePropertiesForArea(area, city, 10);
+                allProperties = allProperties.concat(areaProperties);
+                console.log(`✅ Generated 10 properties for ${area.name}, ${city.name}`);
+            } else {
+                console.log(`❌ City not found for area: ${area.name}, cityId: ${cityId}`);
+                console.log(`   Available city IDs: ${cities.map(c => c._id.toString()).join(', ')}`);
+            }
+        }
+        
+        console.log(`Total properties generated: ${allProperties.length}`);
+
+        // Insert all properties in batches
+        const batchSize = 100;
+        let insertedCount = 0;
+        
+        for (let i = 0; i < allProperties.length; i += batchSize) {
+            const batch = allProperties.slice(i, i + batchSize);
+            await Property.insertMany(batch);
+            insertedCount += batch.length;
+            console.log(`Inserted batch ${Math.floor(i/batchSize) + 1}: ${batch.length} properties`);
+        }
+
+        console.log(`🎉 Successfully inserted ${insertedCount} base properties!`);
+        
+        // Now create WebsitePropertyData with full details
+        console.log('🏠 Creating detailed property data for website...');
+        
+        const allBaseProperties = await Property.find({});
+        let websiteDataCount = 0;
+        
+        // Create a map of area names to area/city data for quick lookup
+        const areaMap = {};
+        areas.forEach(area => {
+            areaMap[area.name.toLowerCase()] = {
+                area: area,
+                city: cities.find(c => c._id.toString() === (area.city?._id?.toString() || area.city.toString()))
+            };
+        });
+        
+        console.log(`Found ${allBaseProperties.length} base properties to process`);
+        console.log(`Area map has ${Object.keys(areaMap).length} areas`);
+        
+        for (const baseProp of allBaseProperties) {
+            // Extract area name from address (format: "AreaName, CityName, State")
+            const addressParts = baseProp.address.split(',');
+            const areaName = addressParts[0]?.trim().toLowerCase();
+            const cityName = addressParts[1]?.trim();
+            
+            const areaData = areaMap[areaName];
+            const area = areaData?.area;
+            const city = areaData?.city || cities.find(c => c.name === cityName);
+            
+            if (area && city) {
+                const rent = Math.floor(Math.random() * 15000) + 5000; // 5000-20000
+                const deposit = Math.floor(rent * 1.5); // 1.5 months rent
+                const genderType = ['Male', 'Female', 'Both'][Math.floor(Math.random() * 3)];
+                const furnishingType = ['Unfurnished', 'Semi-Furnished', 'Fully-Furnished'][Math.floor(Math.random() * 3)];
+                
+                // Generate random amenities (5-8 amenities)
+                const selectedAmenities = [];
+                const amenitiesList = ['WiFi', 'Parking', 'Security', 'Power Backup', 'Water Supply', 
+                                      'Housekeeping', 'Laundry', 'Gym', 'CCTV', 'Fire Safety', 
+                                      'AC', 'TV', 'Fridge', 'Washing Machine', 'Microwave'];
+                const amenityCount = Math.floor(Math.random() * 4) + 5;
+                const shuffled = [...amenitiesList].sort(() => 0.5 - Math.random());
+                for (let j = 0; j < amenityCount; j++) {
+                    selectedAmenities.push(shuffled[j]);
+                }
+                
+                // Generate photo URLs
+                const photoIds = [
+                    '1502672260266-1c1ef2d93688', '1512917774080-9991f1c4c750', '1494203484021-3c454daf695d',
+                    '1522708323590-24a02f675e7b', '1502005229766-528631992609', '1560448204-e02f11c3d0e2',
+                    '1554995207-c18c203602cb', '1600596542815-6ad4c7c4f1c9', '1584622651720-4b3b5d2e8b9c'
+                ];
+                const photos = photoIds.slice(0, Math.floor(Math.random() * 3) + 3).map(
+                    id => `https://images.unsplash.com/photo-${id}?w=800&auto=format&fit=crop`
+                );
+                
+                await WebsitePropertyData.create({
+                    propertyId: baseProp._id.toString(),
+                    propertyInfo: {
+                        name: baseProp.title,
+                        address: baseProp.address,
+                        city: city.name,
+                        area: area.name,
+                        photos: photos,
+                        ownerName: `Owner of ${baseProp.title}`,
+                        ownerPhone: `+91 9${Math.floor(Math.random() * 900000000 + 100000000)}`,
+                        rent: rent,
+                        deposit: `₹${deposit}`,
+                        description: `${baseProp.title} is a ${furnishingType} ${genderType} accommodation located in ${area.name}, ${city.name}. Ideal for students and working professionals.`,
+                        amenities: selectedAmenities,
+                        genderSuitability: genderType
+                    },
+                    gender: genderType,
+                    status: 'active',
+                    isLiveOnWebsite: true,
+                    photos: photos,
+                    monthlyRent: rent,
+                    notes: `Property Type: ${['PG', 'Hostel', 'Flat', 'Room'][Math.floor(Math.random() * 4)]}, Furnishing: ${furnishingType}`,
+                    submittedAt: new Date(),
+                    updatedAt: new Date(),
+                    createdAt: new Date()
+                });
+                
+                websiteDataCount++;
+            }
+        }
+        
+        console.log(`✅ Created ${websiteDataCount} detailed property records!`);
+        console.log(`📊 Summary: ${insertedCount} base properties + ${websiteDataCount} detailed records`);
+        process.exit(0);
+    } catch (error) {
+        console.error('❌ Error seeding properties:', error);
+        process.exit(1);
+    }
+}
+
+if (require.main === module) {
+    seedProperties();
+}
+
+module.exports = seedProperties;

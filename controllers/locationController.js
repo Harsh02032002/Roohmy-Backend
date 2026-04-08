@@ -10,7 +10,7 @@ const { uploadImage, deleteImage, getCloudinaryConfig } = require('../utils/clou
  */
 exports.getCities = async (req, res) => {
     try {
-        const cities = await City.find({ status: 'Active' }).sort({ createdAt: -1 });
+        const cities = await City.find({ status: 'Active' }).select('name state colleges population imageUrl propertyCount status').sort({ createdAt: -1 });
         
         res.status(200).json({
             success: true,

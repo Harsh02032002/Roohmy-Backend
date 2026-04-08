@@ -247,6 +247,10 @@ try {
     console.log('  ✓ checkinRoutes');
     app.use('/api/colleges', require('./routes/collegeRoutes'));
     console.log('  ✓ collegeRoutes');
+    app.use('/api/property-colleges', require('./routes/propertyColleges'));
+    console.log('  ✓ propertyColleges');
+    app.use('/api/reviews', require('./routes/reviewRoutes'));
+    console.log('  ✓ reviewRoutes');
     app.use('/api/rents', require('./routes/rentRoutes'));
     console.log('  ✓ rentRoutes');
     app.use('/api', require('./routes/uploadRoutes'));
