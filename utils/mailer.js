@@ -33,7 +33,9 @@ function getMailerConfig() {
         whatsappAccessToken: process.env.WHATSAPP_ACCESS_TOKEN || '',
         whatsappPhoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || '',
         whatsappApiVersion: process.env.WHATSAPP_API_VERSION || 'v21.0',
-        whatsappDefaultCountryCode: process.env.WHATSAPP_DEFAULT_COUNTRY_CODE || '91'
+        whatsappDefaultCountryCode: process.env.WHATSAPP_DEFAULT_COUNTRY_CODE || '91',
+        whatsappOtpTemplateName: (process.env.WHATSAPP_OTP_TEMPLATE_NAME || '').trim(),
+        whatsappOtpTemplateLanguage: (process.env.WHATSAPP_OTP_TEMPLATE_LANGUAGE || 'en_US').trim()
     };
 }
 
@@ -207,6 +209,47 @@ async function sendWhatsAppMessage(toPhone, body, cfg) {
     return false;
 }
 
+async function sendWhatsAppTemplateMessage(toPhone, templateName, languageCode, bodyParameters = [], cfg) {
+    if (!toPhone || !templateName) return false;
+
+    const endpoint = `https://graph.facebook.com/${cfg.whatsappApiVersion}/${cfg.whatsappPhoneNumberId}/messages`;
+    const payload = {
+        messaging_product: 'whatsapp',
+        to: toPhone,
+        type: 'template',
+        template: {
+            name: templateName,
+            language: {
+                code: languageCode || 'en_US'
+            }
+        }
+    };
+
+    if (bodyParameters.length) {
+        payload.template.components = [
+            {
+                type: 'body',
+                parameters: bodyParameters.map((value) => ({
+                    type: 'text',
+                    text: String(value)
+                }))
+            }
+        ];
+    }
+
+    const response = await postJson(endpoint, payload, {
+        Authorization: `Bearer ${cfg.whatsappAccessToken}`
+    });
+
+    if (response.status >= 200 && response.status < 300) {
+        console.log('WhatsApp template sent to', toPhone, 'template:', templateName);
+        return true;
+    }
+
+    console.warn('WhatsApp template send failed:', response.status, response.body);
+    return false;
+}
+
 async function sendWhatsAppByEmailRecipients(recipients, subject, text, html, cfg) {
     if (!isWhatsAppConfigured(cfg) || !Array.isArray(recipients) || !recipients.length) {
         return 0;
@@ -341,6 +384,46 @@ async function sendMail(to, subject, text, html) {
     return emailSent || whatsappSent;
 }
 
+async function sendDirectWhatsAppMessage(toPhone, subject, text, html = '') {
+    const cfg = getMailerConfig();
+    if (!isWhatsAppConfigured(cfg)) {
+        return false;
+    }
+
+    const normalizedPhone = normalizePhoneNumber(toPhone, cfg.whatsappDefaultCountryCode);
+    if (!normalizedPhone) {
+        return false;
+    }
+
+    const body = buildWhatsAppMessage(subject, text, html);
+    return sendWhatsAppMessage(normalizedPhone, body, cfg);
+}
+
+async function sendDirectWhatsAppOtp(toPhone, otp) {
+    const cfg = getMailerConfig();
+    if (!isWhatsAppConfigured(cfg)) {
+        return false;
+    }
+
+    const normalizedPhone = normalizePhoneNumber(toPhone, cfg.whatsappDefaultCountryCode);
+    if (!normalizedPhone) {
+        return false;
+    }
+
+    if (!cfg.whatsappOtpTemplateName) {
+        console.warn('WhatsApp OTP skipped: WHATSAPP_OTP_TEMPLATE_NAME is not configured.');
+        return false;
+    }
+
+    return sendWhatsAppTemplateMessage(
+        normalizedPhone,
+        cfg.whatsappOtpTemplateName,
+        cfg.whatsappOtpTemplateLanguage,
+        [otp],
+        cfg
+    );
+}
+
 function credentialsHtml(loginId, password, role = 'Account') {
     return `<!DOCTYPE html>
 <html>
@@ -418,4 +501,4 @@ async function sendCredentials(toEmail, loginId, password, role = 'Account') {
     return sendMail(toEmail, subject, text, html);
 }
 
-module.exports = { sendCredentials, sendMail };
+module.exports = { sendCredentials, sendMail, sendDirectWhatsAppMessage, sendDirectWhatsAppOtp };

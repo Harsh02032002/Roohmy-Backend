@@ -337,19 +337,125 @@ router.put('/:id', protect, authorize('admin', 'superadmin'), async (req, res) =
 });
 
 // ============================================================
-// DELETE: Delete review (protected - admin only)
+// GET: Get current user's reviews (protected)
 // ============================================================
-router.delete('/:id', protect, authorize('admin', 'superadmin'), async (req, res) => {
+router.get('/user/my-reviews', protect, async (req, res) => {
+  try {
+    const reviews = await Review.find({ userId: req.user.id })
+      .sort({ createdAt: -1 })
+      .populate('propertyId', 'propertyName propertyImage');
+
+    res.status(200).json({
+      success: true,
+      count: reviews.length,
+      reviews: reviews.map(review => ({
+        _id: review._id,
+        text: review.reviewText || review.text,
+        rating: review.rating,
+        createdAt: review.createdAt,
+        propertyName: review.propertyId?.propertyName || 'Unknown Property',
+        propertyImage: review.propertyId?.propertyImage || null,
+        propertyId: review.propertyId?._id
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching user reviews:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching user reviews',
+      error: error.message
+    });
+  }
+});
+
+// ============================================================
+// PUT: Update own review (protected - owner only)
+// ============================================================
+router.put('/:id', protect, async (req, res) => {
+  try {
+    const { text, rating } = req.body;
+
+    // Find review and check ownership
+    const review = await Review.findOne({
+      _id: req.params.id,
+      userId: req.user.id
+    });
+
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: 'Review not found or you do not have permission to update it'
+      });
+    }
+
+    // Update fields
+    if (text) review.reviewText = text;
+    if (text) review.text = text;
+    if (rating) review.rating = rating;
+
+    await review.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Review updated successfully',
+      data: review
+    });
+  } catch (error) {
+    console.error('Error updating review:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating review',
+      error: error.message
+    });
+  }
+});
+
+// ============================================================
+// DELETE: Delete own review (protected - owner only)
+// ============================================================
+router.delete('/:id', protect, async (req, res) => {
+  try {
+    // Find review and check ownership
+    const review = await Review.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.user.id
+    });
+
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: 'Review not found or you do not have permission to delete it'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Review deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting review:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting review',
+      error: error.message
+    });
+  }
+});
+
+// ============================================================
+// DELETE: Delete review (protected - admin only) - Admin route
+// ============================================================
+router.delete('/admin/:id', protect, authorize('admin', 'superadmin'), async (req, res) => {
   try {
     const review = await Review.findByIdAndDelete(req.params.id);
-    
+
     if (!review) {
       return res.status(404).json({
         success: false,
         message: 'Review not found'
       });
     }
-    
+
     res.status(200).json({
       success: true,
       message: 'Review deleted successfully'

@@ -253,6 +253,8 @@ try {
     console.log('  ✓ reviewRoutes');
     app.use('/api/rents', require('./routes/rentRoutes'));
     console.log('  ✓ rentRoutes');
+    app.use('/api/user', require('./routes/userRoutes'));
+    console.log('  ✓ userRoutes');
     app.use('/api', require('./routes/uploadRoutes'));
     console.log('  ✓ uploadRoutes');
     

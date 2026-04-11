@@ -21,8 +21,43 @@ const userSchema = new mongoose.Schema({
     
     // For Owners created via Visit
     status: { type: String, enum: ['active', 'blocked'], default: 'active' },
-    
+    isActive: { type: Boolean, default: true },
+
+    // Profile fields
     profilePic: { type: String },
+    profileImage: { type: String },
+    firstName: { type: String },
+    lastName: { type: String },
+    address: { type: String },
+    city: { type: String },
+    bio: { type: String },
+
+    // User settings
+    settings: {
+        notifications: {
+            email: { type: Boolean, default: true },
+            sms: { type: Boolean, default: true },
+            push: { type: Boolean, default: true },
+            marketing: { type: Boolean, default: false }
+        },
+        privacy: {
+            profileVisible: { type: Boolean, default: true },
+            showPhone: { type: Boolean, default: false },
+            showEmail: { type: Boolean, default: false }
+        },
+        preferences: {
+            darkMode: { type: Boolean, default: false },
+            language: { type: String, default: 'en' }
+        }
+    },
+
+    // Favourites (array of property IDs)
+    favourites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Property' }],
+
+    // Stats
+    bookings: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Booking' }],
+    reviews: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Review' }],
+
     createdAt: { type: Date, default: Date.now }
 });
 
@@ -36,6 +71,11 @@ userSchema.pre('save', async function (next) {
 
 // Check password
 userSchema.methods.matchPassword = async function (enteredPassword) {
+    return await bcrypt.compare(enteredPassword, this.password);
+};
+
+// Compare password (alias for matchPassword)
+userSchema.methods.comparePassword = async function (enteredPassword) {
     return await bcrypt.compare(enteredPassword, this.password);
 };
 

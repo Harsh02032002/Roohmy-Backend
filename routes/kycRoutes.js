@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const mailer = require('../utils/mailer');
 const { notifySuperadmin } = require('../utils/superadminNotifier');
 const { formLimiter, otpLimiter, captchaProtection } = require('../middleware/security');
+const { sendOTPSMS, formatPhoneNumber } = require('../utils/smsService');
 
 // Temporary OTP store (for production, move to Redis/database)
 const signupOtpStore = new Map();
@@ -113,16 +114,43 @@ router.post('/signup/request-otp', otpLimiter, captchaProtection({ required: fal
             );
         }
 
-        await mailer.sendMail(
+        const delivery = {
+            email: false,
+            whatsapp: false,
+            sms: false
+        };
+
+        // Send Email OTP
+        delivery.email = await mailer.sendMail(
             email,
             'Roomhy - Your Signup Verification Code',
             `Your Roomhy verification code is ${otp}. It is valid for 10 minutes.`,
             renderOtpHtml(firstName, otp)
         );
 
+        // Send mobile OTP (Twilio / SMS providers)
+        const formattedPhone = formatPhoneNumber(phone);
+        sendOTPSMS(formattedPhone, otp, 'signup').then(smsResult => {
+            if (smsResult.success) {
+                delivery.sms = true;
+                console.log(`SMS OTP sent via ${smsResult.provider} to ${formattedPhone}`);
+            } else {
+                console.log('Mobile OTP failed, user will receive email OTP only');
+            }
+        }).catch(err => {
+            console.error('SMS OTP error:', err.message);
+        });
+
         return res.json({
             success: true,
-            message: 'Verification code sent to your email',
+            message: delivery.email && delivery.sms
+                ? 'Verification code sent to your email and mobile'
+                : delivery.email
+                ? 'Verification code sent to your email. Mobile OTP may take a moment.'
+                : delivery.sms
+                ? 'Verification code sent to your mobile'
+                : 'Verification code generated, but email/mobile delivery failed. Please check server config.',
+            channels: delivery,
             ...(process.env.NODE_ENV === 'development' && { demoOtp: otp })
         });
     } catch (error) {
@@ -294,16 +322,42 @@ router.post('/login/request-otp', otpLimiter, captchaProtection({ required: fals
             email
         });
 
-        await mailer.sendMail(
+        const delivery = {
+            email: false,
+            whatsapp: false,
+            sms: false
+        };
+
+        delivery.email = await mailer.sendMail(
             email,
             'Roomhy - Your Login Verification Code',
             `Your Roomhy login verification code is ${otp}. It is valid for 10 minutes.`,
             renderLoginOtpHtml(signup.firstName || user.name, otp)
         );
 
+        // Send mobile OTP (Twilio / SMS providers)
+        if (user.phone) {
+            const formattedPhone = formatPhoneNumber(user.phone);
+            sendOTPSMS(formattedPhone, otp, 'login').then(smsResult => {
+                if (smsResult.success) {
+                    delivery.sms = true;
+                    console.log(`Login SMS OTP sent via ${smsResult.provider} to ${formattedPhone}`);
+                }
+            }).catch(err => {
+                console.error('Login SMS OTP error:', err.message);
+            });
+        }
+
         return res.json({
             success: true,
-            message: 'Login verification code sent to your email',
+            message: delivery.email && delivery.sms
+                ? 'Login verification code sent to your email and mobile'
+                : delivery.email
+                ? 'Login verification code sent to your email. Mobile OTP may take a moment.'
+                : delivery.sms
+                ? 'Login verification code sent to your mobile'
+                : 'Verification code generated, but email/mobile delivery failed. Please check server config.',
+            channels: delivery,
             ...(process.env.NODE_ENV === 'development' && { demoOtp: otp })
         });
     } catch (error) {
