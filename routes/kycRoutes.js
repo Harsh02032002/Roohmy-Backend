@@ -128,14 +128,23 @@ router.post('/signup/request-otp', otpLimiter, captchaProtection({ required: fal
             renderOtpHtml(firstName, otp)
         );
 
-        // Send mobile OTP (Twilio / SMS providers)
+        // Send WhatsApp OTP
         const formattedPhone = formatPhoneNumber(phone);
+        try {
+            const whatsappSent = await mailer.sendDirectWhatsAppOtp(formattedPhone, otp);
+            if (whatsappSent) {
+                delivery.whatsapp = true;
+                console.log(`WhatsApp OTP sent to ${formattedPhone}`);
+            }
+        } catch (err) {
+            console.error('WhatsApp OTP error:', err.message);
+        }
+
+        // Send mobile OTP (Twilio / SMS providers)
         sendOTPSMS(formattedPhone, otp, 'signup').then(smsResult => {
             if (smsResult.success) {
                 delivery.sms = true;
                 console.log(`SMS OTP sent via ${smsResult.provider} to ${formattedPhone}`);
-            } else {
-                console.log('Mobile OTP failed, user will receive email OTP only');
             }
         }).catch(err => {
             console.error('SMS OTP error:', err.message);
@@ -143,11 +152,11 @@ router.post('/signup/request-otp', otpLimiter, captchaProtection({ required: fal
 
         return res.json({
             success: true,
-            message: delivery.email && delivery.sms
+            message: delivery.email && (delivery.whatsapp || delivery.sms)
                 ? 'Verification code sent to your email and mobile'
                 : delivery.email
                 ? 'Verification code sent to your email. Mobile OTP may take a moment.'
-                : delivery.sms
+                : (delivery.whatsapp || delivery.sms)
                 ? 'Verification code sent to your mobile'
                 : 'Verification code generated, but email/mobile delivery failed. Please check server config.',
             channels: delivery,
@@ -335,9 +344,20 @@ router.post('/login/request-otp', otpLimiter, captchaProtection({ required: fals
             renderLoginOtpHtml(signup.firstName || user.name, otp)
         );
 
-        // Send mobile OTP (Twilio / SMS providers)
+        // Send WhatsApp OTP
         if (user.phone) {
             const formattedPhone = formatPhoneNumber(user.phone);
+            try {
+                const whatsappSent = await mailer.sendDirectWhatsAppOtp(formattedPhone, otp);
+                if (whatsappSent) {
+                    delivery.whatsapp = true;
+                    console.log(`WhatsApp login OTP sent to ${formattedPhone}`);
+                }
+            } catch (err) {
+                console.error('WhatsApp login OTP error:', err.message);
+            }
+
+            // Send mobile OTP (Twilio / SMS providers)
             sendOTPSMS(formattedPhone, otp, 'login').then(smsResult => {
                 if (smsResult.success) {
                     delivery.sms = true;
@@ -350,11 +370,11 @@ router.post('/login/request-otp', otpLimiter, captchaProtection({ required: fals
 
         return res.json({
             success: true,
-            message: delivery.email && delivery.sms
+            message: delivery.email && (delivery.whatsapp || delivery.sms)
                 ? 'Login verification code sent to your email and mobile'
                 : delivery.email
                 ? 'Login verification code sent to your email. Mobile OTP may take a moment.'
-                : delivery.sms
+                : (delivery.whatsapp || delivery.sms)
                 ? 'Login verification code sent to your mobile'
                 : 'Verification code generated, but email/mobile delivery failed. Please check server config.',
             channels: delivery,

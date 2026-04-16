@@ -10,6 +10,7 @@ const dns = require('dns');
 const { startCronJobs } = require('./services/cronJobs');
 const initChatSocket = require('./socket/chatSocket');
 const { globalApiLimiter } = require('./middleware/security');
+const { apiCache, getCacheStats, clearCache } = require('./middleware/apiCache');
 const {
     compressionMiddleware,
     hppMiddleware,
@@ -89,19 +90,88 @@ const io = new Server(server, {
 
 initChatSocket(io);
 
-// Middleware (JSON parsing & Security)
+// Enhanced Helmet Security Configuration
 app.use(helmet({
-    contentSecurityPolicy: false,
-    crossOriginEmbedderPolicy: false
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https:"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+            imgSrc: ["'self'", "data:", "https:", "blob:"],
+            connectSrc: ["'self'", "https:"],
+            fontSrc: ["'self'", "https:", "data:"],
+            objectSrc: ["'none'"],
+            mediaSrc: ["'self'", "https:"],
+            frameSrc: ["'none'"],
+            upgradeInsecureRequests: [],
+        },
+    },
+    crossOriginEmbedderPolicy: false, // Allow embedding for compatibility
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    dnsPrefetchControl: { allow: true },
+    frameguard: { action: 'deny' }, // X-Frame-Options
+    hidePoweredBy: true, // Remove X-Powered-By header
+    hsts: {
+        maxAge: 31536000, // 1 year
+        includeSubDomains: true,
+        preload: true
+    },
+    ieNoOpen: true, // X-Download-Options
+    noSniff: true, // X-Content-Type-Options
+    originAgentCluster: true,
+    permittedCrossDomainPolicies: { permittedPolicies: 'none' },
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    xssFilter: true, // X-XSS-Protection
 }));
+
+// Additional Security Headers Middleware
+app.use((req, res, next) => {
+    // Prevent caching of sensitive API responses
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'geolocation=(self), microphone=(), camera=()');
+    
+    // API Response Caching Headers for GET requests
+    if (req.method === 'GET' && req.path.startsWith('/api/')) {
+        // Cache public data for 5 minutes, private data no cache
+        if (req.path.includes('/api/cities') || req.path.includes('/api/property-types') || req.path.includes('/api/approved-properties')) {
+            res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
+        } else if (!req.path.includes('/api/auth')) {
+            res.setHeader('Cache-Control', 'private, no-cache, must-revalidate');
+        }
+    }
+    
+    next();
+});
+
 app.use(compressionMiddleware);
-app.use(express.json({ limit: '500mb' }));
-app.use(express.urlencoded({ limit: '500mb', extended: true }));
+
+// Optimized JSON parsing with size limits
+app.use(express.json({ 
+    limit: '50mb',
+    verify: (req, res, buf) => {
+        req.rawBody = buf;
+    }
+}));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Security middlewares
 app.use(mongoSanitizeMiddleware);
 app.use(hppMiddleware);
 app.use(requestHardening);
 app.use(cors(corsOptions));
 app.use('/api', globalApiLimiter);
+
+// API Response Caching - Speeds up frequently accessed data
+app.use('/api', apiCache);
+
+// Connection Keep-Alive for better performance
+app.use((req, res, next) => {
+    res.setHeader('Keep-Alive', 'timeout=5, max=1000');
+    next();
+});
 if (metricsManager && typeof metricsManager.init === 'function') {
     metricsManager.init(app);
 }
@@ -114,13 +184,21 @@ app.use((req, res, next) => {
     next();
 });
 
-// Database Connection
+// Optimized Database Connection
 const mongoOptions = {
-    serverSelectionTimeoutMS: 15000,
-    socketTimeoutMS: 45000,
-    connectTimeoutMS: 10000,
-    maxPoolSize: 10,
-    minPoolSize: 2
+    serverSelectionTimeoutMS: 5000, // Reduced for faster fail
+    socketTimeoutMS: 30000,
+    connectTimeoutMS: 5000,
+    maxPoolSize: 50, // Increased for concurrent requests
+    minPoolSize: 10,
+    maxIdleTimeMS: 30000,
+    waitQueueTimeoutMS: 5000,
+    readPreference: 'primaryPreferred', // Read from primary, fallback to secondary
+    retryWrites: true,
+    w: 'majority',
+    // Enable query caching at driver level
+    autoIndex: false, // Disable auto-indexing in production for faster startup
+    autoCreate: false
 };
 
 console.log('🔗 Connecting to MongoDB...');
@@ -270,7 +348,27 @@ app.get('/api/health', (req, res) => {
         success: true,
         service: 'roomhy-backend',
         env: process.env.NODE_ENV || 'development',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+        cache: getCacheStats()
+    });
+});
+
+// Cache management endpoints (admin only - add auth later)
+app.get('/api/admin/cache-stats', (req, res) => {
+    res.json({
+        success: true,
+        cache: getCacheStats()
+    });
+});
+
+app.post('/api/admin/clear-cache', (req, res) => {
+    const { path } = req.body || {};
+    clearCache(path);
+    res.json({
+        success: true,
+        message: path ? `Cache cleared for: ${path}` : 'All cache cleared',
+        cache: getCacheStats()
     });
 });
 

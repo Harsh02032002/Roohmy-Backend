@@ -10,6 +10,7 @@
     "start:cluster": "pm2 start ../deploy/ecosystem.config.cjs --env production",
     "backup:db": "bash ../deploy/backup/backup_mongo.sh",
     "seed": "node scripts/seedData.js",
+    "seed:users": "node scripts/seedAllUsers.js",
     "seed:cities": "node seeds/cityAreaSeed.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

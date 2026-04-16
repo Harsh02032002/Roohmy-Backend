@@ -359,26 +359,23 @@ router.get('/all', async (req, res) => {
 
         
 
-        const properties = await ApprovedProperty.find({ 
-
+        // Get total count first
+        const totalCount = await ApprovedProperty.countDocuments({ 
             status: { $in: ['approved', 'live'] }
-
+        });
+        
+        const properties = await ApprovedProperty.find({ 
+            status: { $in: ['approved', 'live'] }
         }).sort({ approvedAt: -1 });
 
-        
-
-        console.log('✅ [approved-properties/all] Found', properties.length, 'approved properties');
-
-
+        console.log('✅ [approved-properties/all] Found', properties.length, 'approved properties (Total:', totalCount + ')');
 
         res.status(200).json({
-
             success: true,
-
             count: properties.length,
-
-            properties: properties
-
+            total: totalCount,
+            properties: properties,
+            message: `${totalCount} properties found`
         });
 
 
@@ -419,28 +416,25 @@ router.get('/city/:city', async (req, res) => {
 
         
 
-        const properties = await ApprovedProperty.find({
-
+        // Get total count for this city
+        const totalCount = await ApprovedProperty.countDocuments({
             'propertyInfo.city': city,
-
             isLiveOnWebsite: true
-
+        });
+        
+        const properties = await ApprovedProperty.find({
+            'propertyInfo.city': city,
+            isLiveOnWebsite: true
         }).sort({ approvedAt: -1 });
 
-        
-
-        console.log('✅ [approved-properties/city] Found', properties.length, 'properties for city:', city);
-
-
+        console.log('✅ [approved-properties/city] Found', properties.length, 'properties for city:', city, '(Total:', totalCount + ')');
 
         res.status(200).json({
-
             success: true,
-
             count: properties.length,
-
-            properties: properties
-
+            total: totalCount,
+            properties: properties,
+            message: `${totalCount} properties found in ${city}`
         });
 
 
@@ -493,7 +487,8 @@ router.get('/public/approved', async (req, res) => {
 
         console.log('✅ [approved-properties/public/approved] Found', properties.length, 'approved properties');
 
-
+        // Get total count before any transformation
+        const totalCount = properties.length;
 
         // Transform to match ourproperty.html expectations
 
@@ -549,11 +544,16 @@ router.get('/public/approved', async (req, res) => {
 
         }));
 
-
-
-        res.status(200).json(transformedProperties);
-
-
+        // Return proper response with count, total, and pagination info
+        res.status(200).json({
+            success: true,
+            count: transformedProperties.length,
+            total: totalCount,
+            properties: transformedProperties,
+            page: 1,
+            pages: 1,
+            message: `${totalCount} properties found`
+        });
 
     } catch (error) {
 

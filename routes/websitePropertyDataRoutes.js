@@ -67,11 +67,15 @@ router.post('/save', async (req, res) => {
 // ============================================================
 router.get('/all', async (req, res) => {
     try {
+        // Get total count first
+        const totalCount = await WebsitePropertyData.countDocuments({});
         const properties = await WebsitePropertyData.find({}).sort({ createdAt: -1 });
         res.json({
             success: true,
             count: properties.length,
-            properties: properties
+            total: totalCount,
+            properties: properties,
+            message: `${totalCount} properties found`
         });
     } catch (error) {
         console.error('Error fetching properties:', error);
@@ -88,11 +92,14 @@ router.get('/all', async (req, res) => {
 // ============================================================
 router.get('/approved', async (req, res) => {
     try {
+        const totalCount = await WebsitePropertyData.countDocuments({ status: 'approved' });
         const properties = await WebsitePropertyData.find({ status: 'approved' }).sort({ createdAt: -1 });
         res.json({
             success: true,
             count: properties.length,
-            properties: properties
+            total: totalCount,
+            properties: properties,
+            message: `${totalCount} approved properties found`
         });
     } catch (error) {
         console.error('Error fetching approved properties:', error);
@@ -109,6 +116,10 @@ router.get('/approved', async (req, res) => {
 // ============================================================
 router.get('/live', async (req, res) => {
     try {
+        const totalCount = await WebsitePropertyData.countDocuments({ 
+            status: 'approved',
+            isLiveOnWebsite: true 
+        });
         const properties = await WebsitePropertyData.find({ 
             status: 'approved',
             isLiveOnWebsite: true 
@@ -116,7 +127,9 @@ router.get('/live', async (req, res) => {
         res.json({
             success: true,
             count: properties.length,
-            properties: properties
+            total: totalCount,
+            properties: properties,
+            message: `${totalCount} live properties found`
         });
     } catch (error) {
         console.error('Error fetching live properties:', error);
