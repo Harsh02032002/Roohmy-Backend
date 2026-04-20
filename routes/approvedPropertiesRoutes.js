@@ -524,6 +524,8 @@ router.get('/public/approved', async (req, res) => {
 
             propertyInfo: prop.propertyInfo,
 
+            propertyViewz: prop.propertyViews,
+
             monthlyRent: prop.propertyInfo?.rent || 0,
 
             gender: prop.propertyInfo?.genderSuitability || 'Co-ed',

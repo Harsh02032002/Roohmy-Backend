@@ -62,6 +62,38 @@ exports.getAllProperties = async (req, res) => {
     }
 };
 
+// Update property with new fields (amenities, benefits, views)
+exports.updateProperty = async (req, res) => {
+  try {
+    const propId = req.params.id;
+    const updateData = { ...req.body };
+    
+    // Auto-geocode if address changed
+    if (updateData.address && updateData.address.trim()) {
+      try {
+        const geo = await geocodeAddress(updateData.address);
+        updateData.latitude = geo.latitude;
+        updateData.longitude = geo.longitude;
+      } catch (geoErr) {
+        console.warn('Geocoding failed:', geoErr.message);
+      }
+    }
+    
+    const property = await Property.findByIdAndUpdate(
+      propId,
+      updateData,
+      { new: true, runValidators: true }
+    ).populate('owner', 'name phone email');
+    
+    if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
+    
+    res.json({ success: true, message: 'Property updated successfully', property });
+  } catch (err) {
+    console.error('Update Property Error:', err);
+    res.status(500).json({ success: false, message: 'Failed to update property', error: err.message });
+  }
+};
+
 // Publish property (Super Admin action)
 exports.publishProperty = async (req, res) => {
     try {

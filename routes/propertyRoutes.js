@@ -16,6 +16,9 @@ router.post('/add', formLimiter, auditTrail('properties'), propertyController.ad
 // Get single property by ID
 router.get('/:id', propertyController.getPropertyById);
 
+// Update property with new fields (amenities, benefits, views)
+router.put('/:id', protect, auditTrail('properties'), propertyController.updateProperty);
+
 // Superadmin publishes property
 router.post('/:id/publish', protect, authorize('superadmin'), propertyController.publishProperty);
 
