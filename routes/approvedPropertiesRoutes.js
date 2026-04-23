@@ -6,6 +6,55 @@ const ApprovedProperty = require('../models/ApprovedProperty');
 const overpassCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+// Extract city from property name (e.g., "HOSTEL - Vastrapur, Ahmedabad" -> "Ahmedabad")
+function extractCityFromName(name) {
+  console.log('🏙️ extractCityFromName input:', name);
+  if (!name) {
+    console.log('❌ No name provided');
+    return null;
+  }
+  const parts = name.split(',');
+  console.log('🏙️ Name parts:', parts);
+  if (parts.length > 1) {
+    const city = parts[parts.length - 1].trim();
+    console.log('✅ Extracted city:', city);
+    return city;
+  }
+  console.log('❌ No comma found in name');
+  return null;
+}
+
+// Parse amenities from JSON strings to proper objects
+function parseAmenities(amenities) {
+  if (!amenities || !Array.isArray(amenities)) return [];
+  
+  console.log('🔧 parseAmenities input:', amenities);
+  
+  const parsed = amenities.map(amenity => {
+    if (typeof amenity === 'string') {
+      try {
+        // Try to parse JSON string
+        const parsed = JSON.parse(amenity);
+        console.log('✅ Parsed amenity:', parsed);
+        return parsed;
+      } catch (e) {
+        // If parsing fails, create a basic amenity object
+        const fallback = {
+          name: amenity.replace(/[{}]/g, '').trim(),
+          icon: 'check',
+          category: 'basic'
+        };
+        console.log('❌ Parse failed, fallback:', fallback);
+        return fallback;
+      }
+    }
+    return amenity;
+  });
+  
+  console.log('🔧 parseAmenities output:', parsed);
+  return parsed;
+}
+
 // Haversine distance formula (km)
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -492,7 +541,15 @@ router.get('/public/approved', async (req, res) => {
 
         // Transform to match ourproperty.html expectations
 
-        const transformedProperties = properties.map(prop => ({
+        const transformedProperties = properties.map(prop => {
+          console.log(`🔍 Backend Debug - Property: ${prop.propertyInfo?.name || prop.visitId}`);
+          console.log(`  City: ${prop.city || prop.propertyInfo?.city || 'Unknown'}`);
+          console.log(`  PropertyViews: ${prop.propertyViews?.length || 0} categories`);
+          if (prop.propertyViews?.length > 0) {
+            console.log(`  First category: ${prop.propertyViews[0].label} (${prop.propertyViews[0].images?.length || 0} images)`);
+          }
+          
+          return {
 
             _id: prop.visitId,
 
@@ -508,11 +565,12 @@ router.get('/public/approved', async (req, res) => {
 
             locality: prop.propertyInfo?.area || '',
 
-            city: prop.propertyInfo?.city || '',
+            city: prop.city || prop.propertyInfo?.city || prop.propertyInfo?.address?.city || extractCityFromName(prop.propertyInfo?.name) || 'Unknown',
 
             rent: prop.propertyInfo?.rent || 0,
 
             photos: prop.propertyInfo?.photos || [],
+            images: prop.propertyInfo?.photos || [],
 
             professionalPhotos: prop.professionalPhotos || [],
 
@@ -524,7 +582,9 @@ router.get('/public/approved', async (req, res) => {
 
             propertyInfo: prop.propertyInfo,
 
-            propertyViewz: prop.propertyViews,
+            propertyViews: prop.propertyViews,
+
+            amenities: parseAmenities(prop.amenities || prop.propertyInfo?.amenities || []),
 
             monthlyRent: prop.propertyInfo?.rent || 0,
 
@@ -543,8 +603,8 @@ router.get('/public/approved', async (req, res) => {
             ownerLoginId: prop.generatedCredentials?.loginId,
 
             createdBy: prop.approvedBy
-
-        }));
+          };
+        });
 
         // Return proper response with count, total, and pagination info
         res.status(200).json({

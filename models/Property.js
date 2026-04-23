@@ -11,6 +11,7 @@ const PropertySchema = new mongoose.Schema({
   ownerLoginId: { type: String },
   status: { type: String, enum: ['inactive','active','blocked'], default: 'inactive' },
   isPublished: { type: Boolean, default: false },
+  isLiveOnWebsite: { type: Boolean, default: false },
   
   // Amenities - Array of amenity objects with icon and name
   amenities: [{

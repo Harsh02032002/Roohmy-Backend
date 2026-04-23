@@ -40,6 +40,69 @@ const amenities = [
   'Housekeeping', 'Laundry', 'Gym', 'CCTV', 'Fire Safety'
 ];
 
+// Curated, stable image pools (non-random) to avoid broken/duplicate visuals
+const IMAGE_POOLS = {
+  pg: [
+    'https://images.pexels.com/photos/1571468/pexels-photo-1571468.jpeg?auto=compress&cs=tinysrgb&w=1200',
+    'https://images.pexels.com/photos/1643383/pexels-photo-1643383.jpeg?auto=compress&cs=tinysrgb&w=1200',
+    'https://images.pexels.com/photos/1457842/pexels-photo-1457842.jpeg?auto=compress&cs=tinysrgb&w=1200',
+    'https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=1200',
+    'https://images.pexels.com/photos/1743229/pexels-photo-1743229.jpeg?auto=compress&cs=tinysrgb&w=1200'
+  ],
+  hostel: [
+    'https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg?auto=compress&cs=tinysrgb&w=1200',
+    'https://images.pexels.com/photos/279719/pexels-photo-279719.jpeg?auto=compress&cs=tinysrgb&w=1200',
+    'https://images.pexels.com/photos/271618/pexels-photo-271618.jpeg?auto=compress&cs=tinysrgb&w=1200',
+    'https://images.pexels.com/photos/164595/pexels-photo-164595.jpeg?auto=compress&cs=tinysrgb&w=1200',
+    'https://images.pexels.com/photos/1457847/pexels-photo-1457847.jpeg?auto=compress&cs=tinysrgb&w=1200'
+  ],
+  flat: [
+    'https://images.pexels.com/photos/1571463/pexels-photo-1571463.jpeg?auto=compress&cs=tinysrgb&w=1200',
+    'https://images.pexels.com/photos/1457847/pexels-photo-1457847.jpeg?auto=compress&cs=tinysrgb&w=1200',
+    'https://images.pexels.com/photos/1571458/pexels-photo-1571458.jpeg?auto=compress&cs=tinysrgb&w=1200',
+    'https://images.pexels.com/photos/2724749/pexels-photo-2724749.jpeg?auto=compress&cs=tinysrgb&w=1200',
+    'https://images.pexels.com/photos/271743/pexels-photo-271743.jpeg?auto=compress&cs=tinysrgb&w=1200'
+  ],
+  room: [
+    'https://images.pexels.com/photos/271743/pexels-photo-271743.jpeg?auto=compress&cs=tinysrgb&w=1200',
+    'https://images.pexels.com/photos/1457842/pexels-photo-1457842.jpeg?auto=compress&cs=tinysrgb&w=1200',
+    'https://images.pexels.com/photos/1571468/pexels-photo-1571468.jpeg?auto=compress&cs=tinysrgb&w=1200',
+    'https://images.pexels.com/photos/1454806/pexels-photo-1454806.jpeg?auto=compress&cs=tinysrgb&w=1200',
+    'https://images.pexels.com/photos/2062426/pexels-photo-2062426.jpeg?auto=compress&cs=tinysrgb&w=1200'
+  ],
+  default: [
+    'https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=1200',
+    'https://images.pexels.com/photos/1743229/pexels-photo-1743229.jpeg?auto=compress&cs=tinysrgb&w=1200',
+    'https://images.pexels.com/photos/1643383/pexels-photo-1643383.jpeg?auto=compress&cs=tinysrgb&w=1200',
+    'https://images.pexels.com/photos/271618/pexels-photo-271618.jpeg?auto=compress&cs=tinysrgb&w=1200',
+    'https://images.pexels.com/photos/1457842/pexels-photo-1457842.jpeg?auto=compress&cs=tinysrgb&w=1200'
+  ]
+};
+
+function hashString(value = '') {
+  return value.split('').reduce((acc, char) => ((acc * 31) + char.charCodeAt(0)) >>> 0, 0);
+}
+
+function getPropertyImageCategory(name = '', propertyType = '') {
+  const text = `${name} ${propertyType}`.toLowerCase();
+  if (text.includes('hostel')) return 'hostel';
+  if (text.includes('pg')) return 'pg';
+  if (text.includes('flat') || text.includes('apartment')) return 'flat';
+  if (text.includes('room')) return 'room';
+  return String(propertyType || '').toLowerCase() || 'default';
+}
+
+function getDeterministicPhotos(propertyName, propertyType, count = 4) {
+  const category = getPropertyImageCategory(propertyName, propertyType);
+  const pool = IMAGE_POOLS[category] || IMAGE_POOLS.default;
+  const startIndex = hashString(propertyName || propertyType || 'roomhy-property') % pool.length;
+
+  return Array.from({ length: Math.min(count, pool.length) }, (_, idx) => {
+    const poolIndex = (startIndex + idx) % pool.length;
+    return pool[poolIndex];
+  });
+}
+
 // Generate random properties for areas
 function generatePropertiesForArea(area, city, count = 10) {
   const properties = [];
@@ -201,26 +264,63 @@ async function seedProperties() {
                 const genderType = ['Male', 'Female', 'Both'][Math.floor(Math.random() * 3)];
                 const furnishingType = ['Unfurnished', 'Semi-Furnished', 'Fully-Furnished'][Math.floor(Math.random() * 3)];
                 
-                // Generate random amenities (5-8 amenities)
+                // Generate structured amenities with Most Popular For and Basic Amenities
                 const selectedAmenities = [];
-                const amenitiesList = ['WiFi', 'Parking', 'Security', 'Power Backup', 'Water Supply', 
-                                      'Housekeeping', 'Laundry', 'Gym', 'CCTV', 'Fire Safety', 
-                                      'AC', 'TV', 'Fridge', 'Washing Machine', 'Microwave'];
-                const amenityCount = Math.floor(Math.random() * 4) + 5;
-                const shuffled = [...amenitiesList].sort(() => 0.5 - Math.random());
-                for (let j = 0; j < amenityCount; j++) {
-                    selectedAmenities.push(shuffled[j]);
+                
+                // Most Popular For amenities (showcase features)
+                const mostPopularFor = [
+                    { name: 'Near Coaching Centers', icon: 'graduation-cap', category: 'popular' },
+                    { name: 'Walking Distance to Metro', icon: 'map-pin', category: 'popular' },
+                    { name: 'IT Professionals Hub', icon: 'briefcase', category: 'popular' },
+                    { name: 'Student Friendly', icon: 'users', category: 'popular' },
+                    { name: 'Girls Safe Area', icon: 'shield', category: 'popular' },
+                    { name: '24/7 Food Court', icon: 'coffee', category: 'popular' },
+                    { name: 'Premium Location', icon: 'star', category: 'popular' },
+                    { name: 'Budget Friendly', icon: 'dollar-sign', category: 'popular' }
+                ];
+                
+                // Basic Amenities
+                const basicAmenities = [
+                    { name: 'High-Speed WiFi', icon: 'wifi', category: 'basic' },
+                    { name: 'Power Backup', icon: 'zap', category: 'basic' },
+                    { name: 'Security', icon: 'shield', category: 'basic' },
+                    { name: 'Water Supply', icon: 'droplet', category: 'basic' },
+                    { name: 'Parking', icon: 'car', category: 'basic' },
+                    { name: 'Housekeeping', icon: 'home', category: 'basic' },
+                    { name: 'Laundry Service', icon: 'shirt', category: 'basic' },
+                    { name: 'Gym', icon: 'dumbbell', category: 'basic' },
+                    { name: 'CCTV Surveillance', icon: 'camera', category: 'basic' },
+                    { name: 'Fire Safety', icon: 'alert-triangle', category: 'basic' },
+                    { name: 'Air Conditioning', icon: 'wind', category: 'basic' },
+                    { name: 'TV Common Room', icon: 'tv', category: 'basic' },
+                    { name: 'Refrigerator', icon: 'fridge', category: 'basic' },
+                    { name: 'Washing Machine', icon: 'shirt', category: 'basic' },
+                    { name: 'Microwave', icon: 'microwave', category: 'basic' }
+                ];
+                
+                // Select 2-3 Most Popular For items
+                const popularCount = Math.floor(Math.random() * 2) + 2;
+                const shuffledPopular = [...mostPopularFor].sort(() => 0.5 - Math.random());
+                for (let j = 0; j < popularCount; j++) {
+                    selectedAmenities.push(JSON.stringify(shuffledPopular[j]));
                 }
                 
-                // Generate photo URLs
-                const photoIds = [
-                    '1502672260266-1c1ef2d93688', '1512917774080-9991f1c4c750', '1494203484021-3c454daf695d',
-                    '1522708323590-24a02f675e7b', '1502005229766-528631992609', '1560448204-e02f11c3d0e2',
-                    '1554995207-c18c203602cb', '1600596542815-6ad4c7c4f1c9', '1584622651720-4b3b5d2e8b9c'
-                ];
-                const photos = photoIds.slice(0, Math.floor(Math.random() * 3) + 3).map(
-                    id => `https://images.unsplash.com/photo-${id}?w=800&auto=format&fit=crop`
-                );
+                // Select 4-6 Basic Amenities
+                const basicCount = Math.floor(Math.random() * 3) + 4;
+                const shuffledBasic = [...basicAmenities].sort(() => 0.5 - Math.random());
+                for (let j = 0; j < basicCount; j++) {
+                    selectedAmenities.push(JSON.stringify(shuffledBasic[j]));
+                }
+                
+                // Deterministic image set based on property name/type (no random photos)
+                const propertyTypeForImages = baseProp.title?.toLowerCase().includes('hostel')
+                  ? 'hostel'
+                  : baseProp.title?.toLowerCase().includes('pg')
+                  ? 'pg'
+                  : baseProp.title?.toLowerCase().includes('flat') || baseProp.title?.toLowerCase().includes('apartment')
+                  ? 'flat'
+                  : 'room';
+                const photos = getDeterministicPhotos(baseProp.title, propertyTypeForImages, 4);
                 
                 await WebsitePropertyData.create({
                     propertyId: baseProp._id.toString(),
