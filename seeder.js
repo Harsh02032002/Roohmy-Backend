@@ -76,125 +76,81 @@ async function seedAdmin() {
             console.log('✅ Seeder: owner already exists');
         }
 
-        // SEED PROPERTIES WITH LAT/LONG
-        const sampleProperties = [
-            {
-                title: "Modern PG - Sector 15, Chandigarh",
-                description: "3-BHK PG with WiFi, AC, Laundry near Punjab University. Home-like food and 24/7 security.",
-                address: "Sector 15, Chandigarh",
-                locationCode: "CHD001",
-                latitude: 30.7465,
-                longitude: 76.7634,
-                status: 'active',
-                isPublished: true,
-                propertyType: 'pg',
-                gender: 'male',
-                monthlyRent: 8500,
-                featuredImage: "https://images.pexels.com/photos/1571468/pexels-photo-1571468.jpeg?auto=compress&cs=tinysrgb&w=600",
-                propertyViews: [
-                    { label: "Facade", images: ["https://images.pexels.com/photos/1571468/pexels-photo-1571468.jpeg?auto=compress&cs=tinysrgb&w=600"], description: "Premium Building Exterior" },
-                    { label: "Reception", images: ["https://images.pexels.com/photos/271618/pexels-photo-271618.jpeg?auto=compress&cs=tinysrgb&w=600"], description: "24/7 Security Desk" },
-                    { label: "Bedroom", images: ["https://images.pexels.com/photos/1743229/pexels-photo-1743229.jpeg?auto=compress&cs=tinysrgb&w=600"], description: "Spacious Boys Bedroom" }
-                ]
-            },
-            {
-                title: "Student Hostel - Delhi University",
-                description: "Budget friendly accommodation, 5 mins from North Campus. Perfect for DU students.",
-                address: "North Campus, Delhi University",
-                locationCode: "DEL001",
-                latitude: 28.7041,
-                longitude: 77.1025,
-                status: 'active',
-                isPublished: true,
-                propertyType: 'hostel',
-                gender: 'female',
-                monthlyRent: 12000,
-                featuredImage: "https://images.pexels.com/photos/1457842/pexels-photo-1457842.jpeg?auto=compress&cs=tinysrgb&w=600",
-                propertyViews: [
-                    { label: "Facade", images: ["https://images.pexels.com/photos/1457842/pexels-photo-1457842.jpeg?auto=compress&cs=tinysrgb&w=600"] },
-                    { label: "Reception", images: ["https://images.pexels.com/photos/279719/pexels-photo-279719.jpeg?auto=compress&cs=tinysrgb&w=600"] },
-                    { label: "Kitchen", images: ["https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg?auto=compress&cs=tinysrgb&w=600"] }
-                ]
-            },
-            {
-                title: "Premium PG - Tech Park",
-                description: "Fully furnished with Gym and Terrace lounge. Top choice for IT professionals.",
-                address: "Whitefield, Bangalore",
-                locationCode: "BNG001",
-                latitude: 13.0362,
-                longitude: 77.6245,
-                status: 'active',
-                isPublished: true,
-                propertyType: 'pg',
-                gender: 'any',
-                monthlyRent: 18000,
-                featuredImage: "https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=600",
-                propertyViews: [
-                    { label: "Facade", images: ["https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=600"] },
-                    { label: "Lobby", images: ["https://images.pexels.com/photos/276724/pexels-photo-276724.jpeg?auto=compress&cs=tinysrgb&w=600"] },
-                    { label: "Bedroom", images: ["https://images.pexels.com/photos/2062426/pexels-photo-2062426.jpeg?auto=compress&cs=tinysrgb&w=600"] }
-                ]
-            },
-            {
-                title: "Cozy Room - Andheri West",
-                description: "Walking distance to Metro, fully secured and clean environment.",
-                address: "Andheri East, Mumbai",
-                locationCode: "MUM001",
-                latitude: 19.1136,
-                longitude: 72.8697,
-                status: 'active',
-                isPublished: true,
-                propertyType: 'pg',
-                gender: 'female',
-                monthlyRent: 22000,
-                featuredImage: "https://images.pexels.com/photos/1457841/pexels-photo-1457841.jpeg?auto=compress&cs=tinysrgb&w=600",
-                propertyViews: [
-                    { label: "Facade", images: ["https://images.pexels.com/photos/1457841/pexels-photo-1457841.jpeg?auto=compress&cs=tinysrgb&w=600"] }
-                ]
-            },
-            {
-                title: "Shared Flat - HITEC City",
-                description: "Near major IT offices, all amenities including laundry and cook.",
-                address: "HITEC City, Hyderabad",
-                locationCode: "HYD001",
-                latitude: 17.3850,
-                longitude: 78.4867,
-                status: 'active',
-                isPublished: true,
-                propertyType: 'apartment',
-                gender: 'any',
-                monthlyRent: 15000,
-                featuredImage: "https://images.pexels.com/photos/1571462/pexels-photo-1571462.jpeg?auto=compress&cs=tinysrgb&w=600",
-                propertyViews: [
-                    { label: "Living Area", images: ["https://images.pexels.com/photos/1571462/pexels-photo-1571462.jpeg?auto=compress&cs=tinysrgb&w=600"] }
-                ]
-            },
-            {
-                title: "IIT Delhi View PG",
-                description: "Premium PG located right next to IIT Delhi. All inclusive luxurious stay for students and scholars.",
-                address: "Hauz Khas, Delhi",
-                locationCode: "DELHI-PG-002",
-                latitude: 28.5397,
-                longitude: 77.1957,
-                status: 'active',
-                isPublished: true,
-                propertyType: 'pg',
-                gender: 'male',
-                monthlyRent: 14000,
-                featuredImage: "https://images.pexels.com/photos/2062426/pexels-photo-2062426.jpeg?auto=compress&cs=tinysrgb&w=600",
-                propertyViews: [
-                    { label: "Facade", images: ["https://images.pexels.com/photos/1571468/pexels-photo-1571468.jpeg?auto=compress&cs=tinysrgb&w=600"], description: "Premium Building Exterior" },
-                    { label: "Reception", images: ["https://images.pexels.com/photos/271618/pexels-photo-271618.jpeg?auto=compress&cs=tinysrgb&w=600"], description: "Modern Reception" },
-                    { label: "Bedroom", images: ["https://images.pexels.com/photos/1743229/pexels-photo-1743229.jpeg?auto=compress&cs=tinysrgb&w=600"], description: "Spacious Student Room" },
-                    { label: "Kitchen", images: ["https://images.pexels.com/photos/2062426/pexels-photo-2062426.jpeg?auto=compress&cs=tinysrgb&w=600"], description: "Fully Loaded Kitchen" }
-                ],
-                amenities: [
-                    { name: "WiFi", icon: "wifi", category: "basic" },
-                    { name: "AC", icon: "wind", category: "comfort" },
-                    { name: "Food", icon: "coffee", category: "basic" }
-                ]
-            }
+        // SEED 42 PROPERTIES WITH DIVERSE AMENITIES
+        const cities = [
+            { name: "Delhi", areas: ["Hauz Khas", "North Campus", "Rohini", "Dwarka", "South Ex"] },
+            { name: "Mumbai", areas: ["Andheri West", "Bandra", "Powai", "Juhu", "Worli"] },
+            { name: "Bangalore", areas: ["Whitefield", "Koramangala", "Indiranagar", "HSR Layout", "Electronic City"] },
+            { name: "Hyderabad", areas: ["HITEC City", "Gachibowli", "Madhapur", "Jubilee Hills", "Banjara Hills"] },
+            { name: "Chandigarh", areas: ["Sector 15", "Sector 17", "Sector 35", "Mohali", "Panchkula"] },
+            { name: "Pune", areas: ["Viman Nagar", "Hinjewadi", "Kothrud", "Magarpatta", "Baner"] }
         ];
+
+        const types = ["PG", "Hostel", "Apartment", "Co-living"];
+        const genders = ["male", "female", "any"];
+        const amenityPool = [
+            { name: "WiFi", icon: "wifi" },
+            { name: "AC", icon: "wind" },
+            { name: "Food", icon: "utensils" },
+            { name: "Laundry", icon: "droplets" },
+            { name: "TV", icon: "tv" },
+            { name: "Gym", icon: "dumbbell" },
+            { name: "Parking", icon: "car" },
+            { name: "Security", icon: "shield" },
+            { name: "Power Backup", icon: "zap" },
+            { name: "CCTV", icon: "camera" }
+        ];
+
+        const imagePool = [
+            "https://images.pexels.com/photos/1571468/pexels-photo-1571468.jpeg",
+            "https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg",
+            "https://images.pexels.com/photos/1457842/pexels-photo-1457842.jpeg",
+            "https://images.pexels.com/photos/1457841/pexels-photo-1457841.jpeg",
+            "https://images.pexels.com/photos/1571462/pexels-photo-1571462.jpeg",
+            "https://images.pexels.com/photos/1743229/pexels-photo-1743229.jpeg",
+            "https://images.pexels.com/photos/271618/pexels-photo-271618.jpeg",
+            "https://images.pexels.com/photos/279719/pexels-photo-279719.jpeg",
+            "https://images.pexels.com/photos/276724/pexels-photo-276724.jpeg",
+            "https://images.pexels.com/photos/2062426/pexels-photo-2062426.jpeg"
+        ];
+
+        const sampleProperties = [];
+        for (let i = 1; i <= 42; i++) {
+            const cityObj = cities[i % cities.length];
+            const area = cityObj.areas[i % cityObj.areas.length];
+            const type = types[i % types.length];
+            const gender = genders[i % genders.length];
+            
+            // Randomize amenities (3-6 per property)
+            const shuffledAmenities = [...amenityPool].sort(() => 0.5 - Math.random());
+            const selectedAmenities = shuffledAmenities.slice(0, 3 + (i % 4));
+
+            // Randomize images (4 per property)
+            const shuffledImages = [...imagePool].sort(() => 0.5 - Math.random());
+            const propertyImages = shuffledImages.slice(0, 4).map(url => `${url}?auto=compress&cs=tinysrgb&w=600`);
+
+            sampleProperties.push({
+                title: `${area} ${type} - ${i}`,
+                description: `Premium ${type} in the heart of ${area}, ${cityObj.name}. Features modern amenities and prime location.`,
+                address: `${area}, ${cityObj.name}`,
+                locationCode: `${cityObj.name.substring(0, 3).toUpperCase()}${100 + i}`,
+                latitude: 20 + Math.random() * 10,
+                longitude: 70 + Math.random() * 10,
+                status: 'active',
+                isPublished: true,
+                propertyType: type === "Co-living" ? "co-living" : type.toLowerCase(),
+                gender: gender,
+                monthlyRent: 8000 + (Math.floor(Math.random() * 20) * 500),
+                featuredImage: propertyImages[0],
+                propertyViews: [
+                    { label: "Main", images: [propertyImages[0]] },
+                    { label: "Room", images: [propertyImages[1]] },
+                    { label: "Interior", images: [propertyImages[2]] },
+                    { label: "Building", images: [propertyImages[3]] }
+                ],
+                amenities: selectedAmenities
+            });
+        }
 
         // Delete existing properties to avoid duplicates
         await Property.deleteMany({});
