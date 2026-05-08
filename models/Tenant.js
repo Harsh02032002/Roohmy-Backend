@@ -101,4 +101,4 @@ const TenantSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model('Tenant', TenantSchema);
+module.exports = mongoose.models.Tenant || mongoose.model('Tenant', TenantSchema);

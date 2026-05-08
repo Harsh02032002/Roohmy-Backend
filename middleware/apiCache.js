@@ -58,8 +58,8 @@ function apiCache(req, res, next) {
         return next();
     }
 
-    // Skip caching for authenticated/private routes
-    if (req.headers.authorization && !req.path.includes('/api/cities') && !req.path.includes('/api/property-types')) {
+    // Skip caching for authenticated/private routes or location management
+    if ((req.headers.authorization || req.path.includes('/api/locations')) && !req.path.includes('/api/property-types')) {
         return next();
     }
 

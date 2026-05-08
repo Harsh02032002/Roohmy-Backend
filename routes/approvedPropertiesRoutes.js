@@ -471,8 +471,8 @@ router.get('/city/:city', async (req, res) => {
             isLiveOnWebsite: true
         });
         
-        const properties = await ApprovedProperty.find({
-            'propertyInfo.city': city,
+        const properties = await ApprovedProperty.find({ 
+            status: { $in: ['approved', 'live'] },
             isLiveOnWebsite: true
         }).sort({ approvedAt: -1 });
 
@@ -526,11 +526,17 @@ router.get('/public/approved', async (req, res) => {
 
         // Later we can filter by isLiveOnWebsite: true for production
 
-        const properties = await ApprovedProperty.find({
-
+        const rawProperties = await ApprovedProperty.find({
             status: { $in: ['approved', 'live'] }
+        }).sort({ updatedAt: -1 });
 
-        }).sort({ approvedAt: -1 });
+        const uniqueMap = new Map();
+        rawProperties.forEach(p => {
+            const key = p.visitId || p.propertyId || p._id.toString();
+            if (!uniqueMap.has(key)) uniqueMap.set(key, p);
+        });
+        
+        const properties = Array.from(uniqueMap.values());
 
 
 
@@ -551,13 +557,13 @@ router.get('/public/approved', async (req, res) => {
           
           return {
 
-            _id: prop.visitId,
-
-            enquiry_id: prop.visitId,
-
-            propertyId: prop.visitId,
+            _id: prop._id,
 
             visitId: prop.visitId,
+
+            propertyId: prop.propertyId || prop.visitId,
+
+            enquiry_id: prop.enquiry_id || prop.visitId,
 
             property_name: prop.propertyInfo?.name || 'Property',
 
@@ -568,9 +574,10 @@ router.get('/public/approved', async (req, res) => {
             city: prop.city || prop.propertyInfo?.city || prop.propertyInfo?.address?.city || extractCityFromName(prop.propertyInfo?.name) || 'Unknown',
 
             rent: prop.propertyInfo?.rent || 0,
+            featuredImage: prop.featuredImage || prop.propertyInfo?.photos?.[0] || '',
 
-            photos: prop.propertyInfo?.photos || [],
-            images: prop.propertyInfo?.photos || [],
+            photos: prop.images && prop.images.length > 0 ? prop.images : (prop.propertyInfo?.photos || []),
+            images: prop.images && prop.images.length > 0 ? prop.images : (prop.propertyInfo?.photos || []),
 
             professionalPhotos: prop.professionalPhotos || [],
 
@@ -597,7 +604,7 @@ router.get('/public/approved', async (req, res) => {
             submittedAt: prop.submittedAt,
 
             approvedAt: prop.approvedAt,
-
+            updatedAt: prop.updatedAt,
             generatedCredentials: prop.generatedCredentials,
 
             ownerLoginId: prop.generatedCredentials?.loginId,

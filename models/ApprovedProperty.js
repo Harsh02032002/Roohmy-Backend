@@ -7,6 +7,10 @@ const ApprovedPropertySchema = new mongoose.Schema({
         required: true,
         index: true
     },
+    propertyId: { type: String },
+    enquiry_id: { type: String },
+    images: [{ type: String }],
+    featuredImage: { type: String },
     propertyInfo: {
         name: { type: String, required: true },
         address: { type: String },
@@ -125,6 +129,10 @@ const ApprovedPropertySchema = new mongoose.Schema({
     latitude: { type: Number },
     longitude: { type: Number },
 
+    // View and click tracking
+    views: { type: Number, default: 0 },
+    clicks: { type: Number, default: 0 },
+
     createdAt: {
         type: Date,
         default: Date.now
@@ -140,4 +148,4 @@ ApprovedPropertySchema.pre('save', function(next) {
     next();
 });
 
-module.exports = mongoose.model('ApprovedProperty', ApprovedPropertySchema);
+module.exports = mongoose.models.ApprovedProperty || mongoose.model('ApprovedProperty', ApprovedPropertySchema);

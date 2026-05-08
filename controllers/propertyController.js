@@ -2,12 +2,34 @@ const Property = require('../models/Property');
 const Enquiry = require('../models/Enquiry');
 const Employee = require('../models/Employee');
 const Notification = require('../models/Notification');
+const ApprovedProperty = require('../models/ApprovedProperty');
 const { geocodeAddress } = require('../utils/geocode');
+const { clearCache } = require('../middleware/apiCache');
+
+const deriveLocationCode = (input = {}) => {
+  const candidates = [
+    input.locationCode,
+    input.location_code,
+    input.areaCode,
+    input.area_code
+  ];
+
+  for (const candidate of candidates) {
+    const value = String(candidate || '').trim();
+    if (!value) continue;
+    const compact = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (compact.length >= 3) return compact.slice(0, 12);
+    if (compact.length > 0) return compact.padEnd(3, 'X');
+  }
+
+  return 'GEN';
+};
 
 // Create / Add a new Property with auto-geocoding
 exports.addProperty = async (req, res) => {
   try {
     const propertyData = { ...req.body };
+    propertyData.locationCode = deriveLocationCode(propertyData);
 
     // Auto-geocode address to lat/long
     if (propertyData.address && propertyData.address.trim()) {
@@ -21,8 +43,73 @@ exports.addProperty = async (req, res) => {
       }
     }
 
+    propertyData.status = 'active'; // Auto active for superadmin
+    propertyData.isPublished = true;
+    propertyData.isLiveOnWebsite = true;
+
     const property = new Property(propertyData);
     await property.save();
+
+    // Auto-approve and make live on website
+    try {
+        const vId = property.visitId || property._id.toString();
+        const approvedPropertyData = {
+            visitId: vId,
+            propertyId: property.propertyId || property._id.toString(),
+            enquiry_id: property.enquiry_id || property._id.toString(),
+            images: property.images || [],
+            featuredImage: property.featuredImage || (property.images && property.images[0]) || "",
+            propertyInfo: {
+                name: property.title || 'Property',
+                city: property.city || 'Unknown',
+                area: property.locality || 'Unknown',
+                address: property.address || '',
+                rent: property.monthlyRent || 0,
+                propertyType: property.propertyType || 'pg',
+                genderSuitability: property.gender || 'any',
+                amenities: property.amenities?.map(a => typeof a === 'string' ? a : a.name) || [],
+                photos: property.images || [],
+                latitude: property.latitude,
+                longitude: property.longitude,
+                description: property.description || ''
+            },
+            // Sync root level fields for premium UI
+            amenities: property.amenities || [],
+            propertyViews: property.propertyViews || [],
+            facilities: property.facilities || {},
+            exclusiveBenefits: property.exclusiveBenefits || [],
+            latitude: property.latitude,
+            longitude: property.longitude,
+            generatedCredentials: {
+                ownerName: property.ownerName || 'Verified Owner',
+                loginId: property.ownerLoginId || ''
+            },
+            isLiveOnWebsite: true,
+            status: 'live',
+            approvedBy: 'superadmin',
+            approvedAt: new Date(),
+            updatedAt: new Date()
+        };
+        
+        await ApprovedProperty.findOneAndUpdate(
+            { 
+              $or: [
+                { visitId: vId },
+                { propertyId: property.propertyId || "" },
+                { 'generatedCredentials.loginId': property.ownerLoginId || "" }
+              ] 
+            },
+            approvedPropertyData,
+            { upsert: true, new: true }
+        );
+        console.log(`Auto-approved/Synced property ${property._id} for website live.`);
+        
+        // Clear API cache to reflect changes immediately
+        clearCache('/api/approved-properties');
+        clearCache('/api/properties');
+    } catch (approveErr) {
+        console.error('Failed to auto-approve property:', approveErr);
+    }
 
     res.status(201).json({
       success: true,
@@ -47,15 +134,26 @@ exports.getPropertyById = async (req, res) => {
   }
 };
 
-// Get ALL Properties (For Super Admin & Area Manager lists)
+// Get ALL Properties (For Super Admin & Area Manager lists) with Pagination
 exports.getAllProperties = async (req, res) => {
     try {
-        // Populate owner details to show name and phone
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+        const total = await Property.countDocuments();
         const properties = await Property.find()
             .populate('owner', 'name phone email')
-            .sort({ createdAt: -1 }); // Newest first
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
 
-        res.json({ success: true, properties });
+        res.json({ 
+            success: true, 
+            properties, 
+            total,
+            page,
+            totalPages: Math.ceil(total / limit)
+        });
     } catch (err) {
         console.error("Get Properties Error:", err);
         res.status(500).json({ success: false, message: 'Server error' });
@@ -67,6 +165,9 @@ exports.updateProperty = async (req, res) => {
   try {
     const propId = req.params.id;
     const updateData = { ...req.body };
+    if (Object.prototype.hasOwnProperty.call(updateData, 'locationCode') || !updateData.locationCode) {
+      updateData.locationCode = deriveLocationCode(updateData);
+    }
     
     // Auto-geocode if address changed
     if (updateData.address && updateData.address.trim()) {
@@ -86,6 +187,73 @@ exports.updateProperty = async (req, res) => {
     ).populate('owner', 'name phone email');
     
     if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
+
+    // Sync with ApprovedProperty if it's active AND live on the website
+    if (property.isLiveOnWebsite && property.status === 'active') {
+      try {
+        const vId = property.visitId || property._id.toString();
+        
+        const approvedPropertyData = {
+          // ... (same as before)
+          visitId: vId,
+          propertyId: property.propertyId || property._id.toString(),
+          enquiry_id: property.enquiry_id || property._id.toString(),
+          images: property.images || [],
+          featuredImage: property.featuredImage || (property.images && property.images[0]) || "",
+          propertyInfo: {
+            name: property.title || 'Property',
+            city: property.city || 'Unknown',
+            area: property.locality || 'Unknown',
+            address: property.address || '',
+            rent: property.monthlyRent || 0,
+            propertyType: property.propertyType || 'pg',
+            genderSuitability: property.gender || 'any',
+            amenities: property.amenities?.map(a => typeof a === 'string' ? a : a.name) || [],
+            photos: property.images || [],
+            latitude: property.latitude,
+            longitude: property.longitude,
+            description: property.description || ''
+          },
+          // Sync root level fields for premium UI
+          amenities: property.amenities || [],
+          propertyViews: property.propertyViews || [],
+          facilities: property.facilities || {},
+          exclusiveBenefits: property.exclusiveBenefits || [],
+          latitude: property.latitude,
+          longitude: property.longitude,
+          generatedCredentials: {
+            ownerName: property.ownerName || 'Verified Owner',
+            loginId: property.ownerLoginId || ''
+          },
+          isLiveOnWebsite: true,
+          status: 'live',
+          updatedAt: new Date()
+        };
+
+        await ApprovedProperty.findOneAndUpdate(
+          { visitId: vId },
+          approvedPropertyData,
+          { upsert: true, new: true }
+        );
+        console.log(`Synced update for property ${property._id} to ApprovedProperty`);
+      } catch (syncErr) {
+        console.error('Sync to ApprovedProperty failed during update:', syncErr);
+      }
+    } else {
+        // If not active OR not live, ensure it's removed from website listing
+        try {
+            await ApprovedProperty.deleteMany({
+                visitId: property.visitId || property._id.toString()
+            });
+            console.log(`Removed property ${property._id} from ApprovedProperty (Inactive or Not Live)`);
+        } catch (removeErr) {
+            console.warn('Failed to remove property from website listing:', removeErr);
+        }
+    }
+    
+    // Clear API cache to reflect changes immediately
+    clearCache('/api/approved-properties');
+    clearCache('/api/properties');
     
     res.json({ success: true, message: 'Property updated successfully', property });
   } catch (err) {
@@ -103,9 +271,111 @@ exports.publishProperty = async (req, res) => {
 
         property.status = 'active';
         property.isPublished = true;
+        property.isLiveOnWebsite = true;
         await property.save();
 
-        res.json({ success: true, property });
+        // Sync with ApprovedProperty collection for website visibility
+        try {
+            const vId = property.visitId || property._id.toString();
+            
+            // Check if already exists in ApprovedProperty
+            const existingApproved = await ApprovedProperty.findOne({ 
+                $or: [
+                    { visitId: vId },
+                    { propertyId: property.propertyId },
+                    { 'generatedCredentials.loginId': property.ownerLoginId }
+                ]
+            });
+
+            const approvedPropertyData = {
+                visitId: vId,
+                propertyId: property.propertyId || property._id.toString(),
+                enquiry_id: property.enquiry_id || property._id.toString(),
+                images: property.images || [],
+                featuredImage: property.featuredImage || (property.images && property.images[0]) || "",
+                propertyInfo: {
+                    name: property.title || 'Property',
+                    city: property.city || 'Unknown',
+                    area: property.locality || 'Unknown',
+                    address: property.address || '',
+                    rent: property.monthlyRent || 0,
+                    propertyType: property.propertyType || 'pg',
+                    genderSuitability: property.gender || 'any',
+                    amenities: property.amenities?.map(a => typeof a === 'string' ? a : a.name) || [],
+                    photos: property.images || [],
+                    latitude: property.latitude,
+                    longitude: property.longitude,
+                    description: property.description || ''
+                },
+                // Sync root level fields for premium UI
+                amenities: property.amenities || [],
+                propertyViews: property.propertyViews || [],
+                facilities: property.facilities || {},
+                exclusiveBenefits: property.exclusiveBenefits || [],
+                latitude: property.latitude,
+                longitude: property.longitude,
+                generatedCredentials: {
+                    ownerName: property.ownerName || 'Verified Owner',
+                    loginId: property.ownerLoginId || ''
+                },
+                isLiveOnWebsite: true,
+                status: 'live',
+                approvedBy: 'superadmin',
+                approvedAt: new Date()
+            };
+
+            if (existingApproved) {
+                await ApprovedProperty.findByIdAndUpdate(existingApproved._id, approvedPropertyData);
+                console.log(`Updated existing ApprovedProperty for ${property._id}`);
+            } else {
+                const approvedProperty = new ApprovedProperty(approvedPropertyData);
+                await approvedProperty.save();
+                console.log(`Created new ApprovedProperty entry for ${property._id}`);
+            }
+        } catch (syncErr) {
+            console.error('Sync to ApprovedProperty failed during publish:', syncErr);
+        }
+
+        // Clear API cache to reflect changes immediately
+        clearCache('/api/approved-properties');
+        clearCache('/api/properties');
+
+        res.json({ success: true, message: 'Property published successfully', property });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// Unpublish property (Super Admin action)
+exports.unpublishProperty = async (req, res) => {
+    try {
+        const propId = req.params.id;
+        const property = await Property.findById(propId);
+        if (!property) return res.status(404).json({ message: 'Property not found' });
+
+        property.isPublished = false;
+        property.isLiveOnWebsite = false;
+        await property.save();
+
+        // Remove from ApprovedProperty
+        try {
+            await ApprovedProperty.deleteMany({
+                $or: [
+                    { visitId: property.visitId || property._id.toString() },
+                    { propertyId: property.propertyId || "" },
+                    { 'generatedCredentials.loginId': property.ownerLoginId || "" }
+                ]
+            });
+        } catch (syncErr) {
+            console.error('Removal from ApprovedProperty failed during unpublish:', syncErr);
+        }
+
+        // Clear API cache to reflect changes immediately
+        clearCache('/api/approved-properties');
+        clearCache('/api/properties');
+
+        res.json({ success: true, message: 'Property unpublished successfully' });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Server error' });
@@ -188,5 +458,34 @@ exports.submitEnquiry = async (req, res) => {
             message: 'Failed to submit enquiry',
             error: err.message
         });
+    }
+};
+
+// Delete property
+exports.deleteProperty = async (req, res) => {
+    try {
+        const propId = req.params.id;
+        const property = await Property.findById(propId);
+        if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
+
+        // Remove ALL instances from ApprovedProperty as well (to clear duplicates)
+        await ApprovedProperty.deleteMany({
+            $or: [
+                { visitId: property.visitId || property._id.toString() },
+                { propertyId: property.propertyId || "" },
+                { 'generatedCredentials.loginId': property.ownerLoginId || "" }
+            ]
+        });
+
+        await Property.findByIdAndDelete(propId);
+
+        // Clear API cache to reflect changes immediately
+        clearCache('/api/approved-properties');
+        clearCache('/api/properties');
+
+        res.json({ success: true, message: 'Property deleted successfully' });
+    } catch (err) {
+        console.error('Delete Property Error:', err);
+        res.status(500).json({ success: false, message: 'Failed to delete property', error: err.message });
     }
 };

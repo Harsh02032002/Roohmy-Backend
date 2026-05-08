@@ -21,9 +21,9 @@ const employeeSchema = new mongoose.Schema({
     password: String,
     role: {
         type: String,
-        enum: ['Marketing Team', 'Accounts Department', 'Maintenance Team', 'Customer Support', 'Custom'],
         default: 'Custom'
     },
+    photoDataUrl: String,
     customRole: String, // For custom roles
     area: String,
     areaCode: String,

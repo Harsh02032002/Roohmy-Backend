@@ -50,6 +50,8 @@ const WebsitePropertySchema = new mongoose.Schema({
 
     isLiveOnWebsite: { type: Boolean, default: true },
     status: { type: String, enum: ['online', 'offline'], default: 'online' },
+    views: { type: Number, default: 0 },
+    clicks: { type: Number, default: 0 },
     submittedAt: { type: Date, default: Date.now },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }

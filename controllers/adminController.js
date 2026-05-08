@@ -3,6 +3,7 @@ const Property = require('../models/Property');
 const User = require('../models/user');
 const Owner = require('../models/Owner');
 const CheckinRecord = require('../models/CheckinRecord');
+const BookingRequest = require('../models/BookingRequest');
 
 const APP_URL = process.env.APP_URL || process.env.APP_BASE_URL || process.env.WEB_APP_URL || 'https://app.roomhy.com';
 const DIGITAL_CHECKIN_URL = process.env.DIGITAL_CHECKIN_URL || process.env.FRONTEND_URL || 'https://admin.roomhy.com';
@@ -263,6 +264,14 @@ exports.getStats = async (req, res) => {
         const pendingOwners = await Owner.countDocuments({ 'kyc.status': 'pending', ...ownerFilter });
         const activeTenants = await require('../models/Tenant').countDocuments(tenantFilter);
         const enquiryCount = await VisitReport.countDocuments(visitFilter);
+        const totalBookings = await BookingRequest.countDocuments();
+        
+        // Calculate Revenue from confirmed/paid bookings
+        const revenueAggregate = await BookingRequest.aggregate([
+            { $match: { status: 'confirmed' } },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]);
+        const totalRevenue = revenueAggregate[0]?.total || 0;
 
         // Area-wise breakdown (simple aggregation)
         const areaAggregation = await Property.aggregate([
@@ -277,6 +286,8 @@ exports.getStats = async (req, res) => {
             pendingOwners,
             activeTenants,
             enquiryCount,
+            totalBookings,
+            totalRevenue,
             areaAggregation
         });
     } catch (err) {

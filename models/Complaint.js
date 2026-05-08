@@ -6,6 +6,12 @@ const complaintSchema = new mongoose.Schema({
         required: true,
         index: true
     },
+    type: {
+        type: String,
+        enum: ['Tenant', 'Owner'],
+        default: 'Tenant',
+        index: true
+    },
     tenantName: {
         type: String,
         required: true

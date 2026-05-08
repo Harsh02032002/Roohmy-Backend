@@ -49,7 +49,7 @@ const bookingRequestSchema = new mongoose.Schema({
 
     request_type: { 
         type: String, 
-        enum: ['request', 'bid'], 
+        enum: ['request', 'bid', 'direct', 'online', 'website'], 
         required: true 
     },
     bid_amount: { type: Number, default: 0 },

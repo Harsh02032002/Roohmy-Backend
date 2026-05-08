@@ -3,8 +3,8 @@ const mongoose = require('mongoose');
 const AreaSchema = new mongoose.Schema(
     {
         name: { type: String, required: true, trim: true },
-        cityId: { type: mongoose.Schema.Types.ObjectId, ref: 'City', required: true },
-        city: { type: mongoose.Schema.Types.ObjectId, ref: 'City', required: true }, // Backward compatibility
+        cityId: { type: mongoose.Schema.Types.ObjectId, ref: 'City' },
+        city: { type: mongoose.Schema.Types.ObjectId, ref: 'City' }, // Backward compatibility
         cityName: { type: String, required: true }, // Denormalized for easier querying
         zone: { type: String, default: '' }, // North, South, East, West, Central
         landmarks: [{ type: String }], // Nearby landmarks (temples, stations, etc.)

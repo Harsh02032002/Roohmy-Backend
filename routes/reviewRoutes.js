@@ -266,6 +266,35 @@ router.post('/', protect, async (req, res) => {
         message: 'You have already reviewed this property'
       });
     }
+
+    // ✅ NEW: Verify if the user has actually bought (booked) the property
+    const BookingRequest = require('../models/BookingRequest');
+    const userBooking = await BookingRequest.findOne({
+      $and: [
+        { property_id: propertyId },
+        { 
+          $or: [
+            { user_id: String(userId) },
+            { email: email }
+          ]
+        },
+        { 
+          $or: [
+            { booking_status: 'confirmed' },
+            { status: 'confirmed' },
+            { status: 'booked' },
+            { payment_status: 'completed' }
+          ]
+        }
+      ]
+    });
+
+    if (!userBooking) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access Denied: Reviews are only allowed for guests with a confirmed and paid booking for this property.'
+      });
+    }
     
     // Create new review
     const newReview = await Review.create({

@@ -115,6 +115,7 @@ router.post('/bulk-create', bookingController.createBulkBookingRequest);
 router.post('/requests', bookingController.createBookingRequest);
 
 // Get all booking requests (filtered by area, request_type, status)
+router.get('/', bookingController.getBookingRequests);
 router.get('/requests', bookingController.getBookingRequests);
 
 // Get user bookings (tenant's mystays page) - MUST BE BEFORE /requests/:id route

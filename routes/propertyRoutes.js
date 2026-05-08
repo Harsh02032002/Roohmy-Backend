@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const propertyController = require('../controllers/propertyController');
 const Property = require('../models/Property');
+const ApprovedProperty = require('../models/ApprovedProperty');
 const { protect, authorize } = require('../middleware/authMiddleware');
 const { auditTrail } = require('../middleware/auditTrail');
 const { formLimiter } = require('../middleware/security');
@@ -17,10 +19,13 @@ router.post('/add', formLimiter, auditTrail('properties'), propertyController.ad
 router.get('/:id', propertyController.getPropertyById);
 
 // Update property with new fields (amenities, benefits, views)
-router.put('/:id', protect, auditTrail('properties'), propertyController.updateProperty);
+router.put('/:id', formLimiter, auditTrail('properties'), propertyController.updateProperty);
+
+// Delete property
+router.delete('/:id', auditTrail('properties'), propertyController.deleteProperty);
 
 // Superadmin publishes property
-router.post('/:id/publish', protect, authorize('superadmin'), propertyController.publishProperty);
+router.post('/:id/publish', formLimiter, propertyController.publishProperty);
 
 // Submit property enquiry (from list.html)
 router.post('/property-enquiry/submit', formLimiter, auditTrail('properties'), propertyController.submitEnquiry);
@@ -61,6 +66,130 @@ router.post('/ensure-owner', formLimiter, auditTrail('properties'), async (req, 
         console.error('ensure-owner property error:', err);
         return res.status(500).json({ success: false, message: err.message });
     }
+});
+
+// Helper to check if string is valid ObjectId
+const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+
+// Track view on property
+router.post('/:id/view', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const idParts = id.split('-');
+    const locationPart = idParts.length > 1 ? idParts[1] : id;
+    
+    let query = { 
+      $or: [
+        { visitId: id }, 
+        { locationCode: id },
+        { locationCode: locationPart }
+      ] 
+    };
+    
+    if (isValidObjectId(id)) {
+      query.$or.push({ _id: id });
+    }
+    
+    console.log(`👁️ Backend: Tracking view for property ID: ${id}`);
+
+    // 1. Update ApprovedProperty model
+    const approved = await ApprovedProperty.findOneAndUpdate(
+      query,
+      { $inc: { views: 1 } },
+      { new: true }
+    );
+    
+    // 2. Update Property model (for Superadmin Dashboard)
+    // If we found an approved property, try to link to the master Property via ownerLoginId
+    let propertyUpdateQuery = { ...query };
+    if (approved && approved.generatedCredentials?.loginId) {
+      propertyUpdateQuery = { 
+        $or: [
+          ...query.$or,
+          { ownerLoginId: approved.generatedCredentials.loginId }
+        ] 
+      };
+    }
+
+    const property = await Property.findOneAndUpdate(
+      propertyUpdateQuery,
+      { $inc: { views: 1 } },
+      { new: true }
+    );
+
+    if (!property && !approved) {
+      console.warn(`❌ Backend: Property not found for tracking view: ${id}`);
+      return res.status(404).json({ success: false, message: 'Property not found' });
+    }
+
+    res.json({ 
+      success: true, 
+      views: (property?.views || approved?.views || 0)
+    });
+  } catch (error) {
+    console.error('Error tracking view:', error);
+    res.status(500).json({ success: false, message: 'Failed to track view' });
+  }
+});
+
+// Track click on property
+router.post('/:id/click', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const idParts = id.split('-');
+    const locationPart = idParts.length > 1 ? idParts[1] : id;
+    
+    let query = { 
+      $or: [
+        { visitId: id }, 
+        { locationCode: id },
+        { locationCode: locationPart }
+      ] 
+    };
+    
+    if (isValidObjectId(id)) {
+      query.$or.push({ _id: id });
+    }
+
+    console.log(`🖱️ Backend: Tracking click for property ID: ${id}`);
+
+    // 1. Update ApprovedProperty model
+    const approved = await ApprovedProperty.findOneAndUpdate(
+      query,
+      { $inc: { clicks: 1 } },
+      { new: true }
+    );
+    
+    // 2. Update Property model (for Superadmin Dashboard)
+    let propertyUpdateQuery = { ...query };
+    if (approved && approved.generatedCredentials?.loginId) {
+      propertyUpdateQuery = { 
+        $or: [
+          ...query.$or,
+          { ownerLoginId: approved.generatedCredentials.loginId }
+        ] 
+      };
+    }
+
+    const property = await Property.findOneAndUpdate(
+      propertyUpdateQuery,
+      { $inc: { clicks: 1 } },
+      { new: true }
+    );
+
+    if (!property && !approved) {
+      console.warn(`❌ Backend: Property not found for tracking click: ${id}`);
+      return res.status(404).json({ success: false, message: 'Property not found' });
+    }
+
+    res.json({ 
+      success: true, 
+      clicks: (property?.clicks || approved?.clicks || 0)
+    });
+  } catch (error) {
+    console.error('Error tracking click:', error);
+    res.status(500).json({ success: false, message: 'Failed to track click' });
+  }
 });
 
 module.exports = router;

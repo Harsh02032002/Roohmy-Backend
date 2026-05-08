@@ -66,7 +66,7 @@ router.get('/:loginId', async (req, res) => {
  */
 router.post('/', async (req, res) => {
     try {
-        const { name, loginId, email, phone, password, role, area, areaCode, city, locationCode, permissions = [], parentLoginId } = req.body;
+        const { name, loginId, email, phone, password, role, area, areaCode, city, locationCode, permissions = [], parentLoginId, photoDataUrl } = req.body;
 
         console.log('Creating employee:', { name, loginId, email, role });
 
@@ -94,6 +94,7 @@ router.post('/', async (req, res) => {
                     locationCode,
                     permissions,
                     parentLoginId,
+                    photoDataUrl,
                     isActive: true,
                     updatedAt: new Date()
                 });
@@ -143,6 +144,7 @@ router.post('/', async (req, res) => {
                 locationCode,
                 permissions,
                 parentLoginId,
+                photoDataUrl,
                 isActive: true,
                 updatedAt: new Date()
             });
@@ -164,7 +166,8 @@ router.post('/', async (req, res) => {
                 city,
                 locationCode,
                 permissions,
-                parentLoginId
+                parentLoginId,
+                photoDataUrl
             });
         } catch (dbErr) {
             if (dbErr && dbErr.code === 11000) {

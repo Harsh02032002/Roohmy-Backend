@@ -15,10 +15,11 @@ exports.getTenantComplaints = async (req, res) => {
 // Create a new complaint
 exports.createComplaint = async (req, res) => {
     try {
-        const { tenantId, tenantName, tenantPhone, property, roomNo, bedNo, category, description, priority } = req.body;
+        const { tenantId, tenantName, tenantPhone, property, roomNo, bedNo, category, description, priority, type } = req.body;
 
         const complaint = new Complaint({
             tenantId,
+            type: type || 'Tenant',
             tenantName: tenantName || 'Unknown',
             tenantPhone: tenantPhone || 'N/A',
             property: property || 'N/A',
@@ -69,7 +70,9 @@ exports.updateComplaintStatus = async (req, res) => {
 // Get all complaints
 exports.getAllComplaints = async (req, res) => {
     try {
-        const complaints = await Complaint.find().sort({ createdAt: -1 });
+        const { type } = req.query;
+        const query = type ? { type } : {};
+        const complaints = await Complaint.find(query).sort({ createdAt: -1 });
         res.json({ success: true, complaints });
     } catch (err) {
         console.error("Get All Complaints Error:", err);

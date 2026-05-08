@@ -40,61 +40,42 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 const server = http.createServer(app);
-const ROOT_DIR = path.resolve(__dirname, '..');
-app.set('trust proxy', Number(process.env.TRUST_PROXY || 1));
-const envOrigins = (process.env.CORS_ORIGINS || '')
-    .split(',')
-    .map(origin => origin.trim())
-    .filter(Boolean);
-const defaultOrigins = [
-    'https://roomhy.com',
-    'https://www.roomhy.com',
-    'https://admin.roomhy.com',
-    'https://app.roomhy.com',
-    'https://api.roomhy.com',
-    'https://roohmy-frontend.vercel.app'
-];
-const localOrigins = [
-    'http://localhost:3000',
-    'http://localhost:5000',
-    'http://localhost:5001',
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'http://localhost:5175',
-    'http://localhost:5176',
-    'http://localhost:5177',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:5000',
-    'http://127.0.0.1:5001',
-    'http://127.0.0.1:5173',
-    'http://127.0.0.1:5174'
-    ,
-    'http://127.0.0.1:5175',
-    'http://127.0.0.1:5176',
-    'http://127.0.0.1:5177'
-];
-const allowedOrigins = Array.from(new Set([...(envOrigins.length ? envOrigins : defaultOrigins), ...localOrigins]));
-const corsOptions = {
-    origin: function (origin, callback) {
-        // Allow all origins for development and production Vercel apps
-        if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('vercel.app') || origin.includes('roomhy.com')) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    optionsSuccessStatus: 200
-};
-const io = new Server(server, {
-    cors: corsOptions
+
+// 1. Robust CORS Middleware - Handles preflight and credentials for all our environments
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    const isAllowedOrigin = !origin || 
+        origin.includes('localhost') || 
+        origin.includes('127.0.0.1') || 
+        origin.includes('vercel.app') || 
+        origin.includes('roomhy.com');
+
+    if (isAllowedOrigin && origin) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+        res.setHeader('Access-Control-Allow-Headers', req.headers['access-control-request-headers'] || 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+    }
+
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+    next();
 });
 
+// 2. Socket.io initialization with CORS
+const io = new Server(server, {
+    cors: {
+        origin: (origin, callback) => callback(null, true),
+        credentials: true,
+        methods: ["GET", "POST"]
+    }
+});
 initChatSocket(io);
 
-// Enhanced Helmet Security Configuration
+// 3. Security & Optimization Middlewares
+app.set('trust proxy', Number(process.env.TRUST_PROXY || 1));
+
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
@@ -102,7 +83,7 @@ app.use(helmet({
             styleSrc: ["'self'", "'unsafe-inline'", "https:"],
             scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
             imgSrc: ["'self'", "data:", "https:", "blob:"],
-            connectSrc: ["'self'", "https:"],
+            connectSrc: ["'self'", "https:", "http://localhost:*", "ws://localhost:*"],
             fontSrc: ["'self'", "https:", "data:"],
             objectSrc: ["'none'"],
             mediaSrc: ["'self'", "https:"],
@@ -110,62 +91,31 @@ app.use(helmet({
             upgradeInsecureRequests: [],
         },
     },
-    crossOriginEmbedderPolicy: false, // Allow embedding for compatibility
+    crossOriginEmbedderPolicy: false,
     crossOriginResourcePolicy: { policy: "cross-origin" },
-    dnsPrefetchControl: { allow: true },
-    frameguard: { action: 'deny' }, // X-Frame-Options
-    hidePoweredBy: true, // Remove X-Powered-By header
-    hsts: {
-        maxAge: 31536000, // 1 year
-        includeSubDomains: true,
-        preload: true
-    },
-    ieNoOpen: true, // X-Download-Options
-    noSniff: true, // X-Content-Type-Options
-    originAgentCluster: true,
-    permittedCrossDomainPolicies: { permittedPolicies: 'none' },
-    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-    xssFilter: true, // X-XSS-Protection
 }));
 
-// Additional Security Headers Middleware
+// Additional Security Headers
 app.use((req, res, next) => {
-    // Prevent caching of sensitive API responses
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.setHeader('Permissions-Policy', 'geolocation=(self), microphone=(), camera=()');
-    
-    // API Response Caching Headers for GET requests
-    if (req.method === 'GET' && req.path.startsWith('/api/')) {
-        // Cache public data for 5 minutes, private data no cache
-        if (req.path.includes('/api/cities') || req.path.includes('/api/property-types') || req.path.includes('/api/approved-properties')) {
-            res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
-        } else if (!req.path.includes('/api/auth')) {
-            res.setHeader('Cache-Control', 'private, no-cache, must-revalidate');
-        }
-    }
-    
     next();
 });
 
 app.use(compressionMiddleware);
 
-// Optimized JSON parsing with size limits
-app.use(express.json({ 
-    limit: '50mb',
-    verify: (req, res, buf) => {
-        req.rawBody = buf;
-    }
-}));
+// Body Parsers
+app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Security middlewares
+// Security Hardening
 app.use(mongoSanitizeMiddleware);
 app.use(hppMiddleware);
 app.use(requestHardening);
-app.use(cors(corsOptions));
+
+const ROOT_DIR = path.resolve(__dirname, '..');
 app.use('/api', globalApiLimiter);
 
 // API Response Caching - Speeds up frequently accessed data
@@ -176,6 +126,7 @@ app.use((req, res, next) => {
     res.setHeader('Keep-Alive', 'timeout=5, max=1000');
     next();
 });
+
 if (metricsManager && typeof metricsManager.init === 'function') {
     metricsManager.init(app);
 }
@@ -190,19 +141,14 @@ app.use((req, res, next) => {
 
 // Optimized Database Connection
 const mongoOptions = {
-    serverSelectionTimeoutMS: 5000, // Reduced for faster fail
+    serverSelectionTimeoutMS: 30000,
+    connectTimeoutMS: 30000,
     socketTimeoutMS: 30000,
-    connectTimeoutMS: 5000,
-    maxPoolSize: 50, // Increased for concurrent requests
-    minPoolSize: 10,
-    maxIdleTimeMS: 30000,
-    waitQueueTimeoutMS: 5000,
-    readPreference: 'primaryPreferred', // Read from primary, fallback to secondary
+    family: 4, // Force IPv4 to avoid DNS resolution delays
+    waitQueueTimeoutMS: 30000,
+    heartbeatFrequencyMS: 10000,
     retryWrites: true,
-    w: 'majority',
-    // Enable query caching at driver level
-    autoIndex: false, // Disable auto-indexing in production for faster startup
-    autoCreate: false
+    w: 'majority'
 };
 
 console.log('🔗 Connecting to MongoDB...');
@@ -297,8 +243,8 @@ try {
     console.log('  ✓ kycRoutes');
     app.use('/api/signups', require('./routes/kycRoutes'));
     console.log('  ✓ kycRoutes (as /api/signups)');
-    app.use('/api/cities', require('./routes/citiesRoutes'));
-    console.log('  ✓ citiesRoutes');
+    console.log('  ✓ citiesRoutes (moved to /api/locations/cities)');
+    // app.use('/api/cities', require('./routes/citiesRoutes'));
     app.use('/api/property-types', require('./routes/propertyTypeRoutes'));
     console.log('  ✓ propertyTypeRoutes');
     app.use('/api/locations', require('./routes/locationRoutes'));
@@ -336,9 +282,15 @@ try {
     app.use('/api/rents', require('./routes/rentRoutes'));
     console.log('  ✓ rentRoutes');
     app.use('/api/user', require('./routes/userRoutes'));
-    console.log('  ✓ userRoutes');
+    app.use('/api/superadmin', require('./routes/superadminRoutes'));
+    app.use('/api/amenities', require('./routes/amenityRoutes'));
+    console.log('  ? amenityRoutes');
+    app.use('/api/pricing', require('./routes/pricingRoutes'));
+    console.log('  ? pricingRoutes');
+    app.use('/api/featured', require('./routes/featuredRoutes'));
+    console.log('  ? featuredRoutes');
     app.use('/api', require('./routes/uploadRoutes'));
-    console.log('  ✓ uploadRoutes');
+    console.log('  ? uploadRoutes');
     
     console.log('✅ All routes loaded');
 } catch (err) {

@@ -56,4 +56,4 @@ const ownerSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model('Owner', ownerSchema);
+module.exports = mongoose.models.Owner || mongoose.model('Owner', ownerSchema);

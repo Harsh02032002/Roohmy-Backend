@@ -10,7 +10,7 @@ const { uploadImage, deleteImage, getCloudinaryConfig } = require('../utils/clou
  */
 exports.getCities = async (req, res) => {
     try {
-        const cities = await City.find({ status: 'Active' }).select('name state colleges population imageUrl propertyCount status').sort({ createdAt: -1 });
+        const cities = await City.find({ status: 'Active' }).select('_id name state colleges population imageUrl propertyCount status').sort({ createdAt: -1 });
         
         res.status(200).json({
             success: true,
@@ -290,17 +290,17 @@ exports.getAreasByCity = async (req, res) => {
  */
 exports.createArea = async (req, res) => {
     try {
-        const { name, cityId } = req.body;
-
-        if (!name || !cityId) {
+        const { name, cityId, city: cityBodyId } = req.body;
+        const targetCityId = cityId || cityBodyId;
+        
+        if (!name || !targetCityId) {
             return res.status(400).json({
                 success: false,
                 message: 'Name and cityId are required'
             });
         }
 
-        // Find city
-        const cityObj = await City.findById(cityId);
+        const cityObj = await City.findById(targetCityId);
         if (!cityObj) {
             return res.status(404).json({
                 success: false,
@@ -337,7 +337,8 @@ exports.createArea = async (req, res) => {
 
         const area = new Area({
             name,
-            city: cityId,
+            city: cityObj._id,
+            cityId: cityObj._id, // Added for schema requirement
             cityName: cityObj.name,
             imageUrl,
             imagePublicId,

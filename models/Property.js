@@ -4,14 +4,21 @@ const PropertySchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String },
   address: { type: String },
-  locationCode: { type: String, required: true },
+  locationCode: { type: String, default: 'GEN' },
   latitude: { type: Number, default: null },
   longitude: { type: Number, default: null },
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   ownerLoginId: { type: String },
+  ownerName: { type: String },
+  ownerPhone: { type: String },
   status: { type: String, enum: ['inactive','active','blocked'], default: 'inactive' },
   isPublished: { type: Boolean, default: false },
   isLiveOnWebsite: { type: Boolean, default: false },
+  visitId: { type: String, index: true },
+  city: { type: String, index: true },
+  locality: { type: String, index: true },
+  propertyId: { type: String },
+  enquiry_id: { type: String },
   
   // Amenities - Array of amenity objects with icon and name
   amenities: [{
@@ -48,6 +55,7 @@ const PropertySchema = new mongoose.Schema({
   // Room details
   totalRooms: { type: Number, default: 0 },
   bedsPerRoom: { type: Number, default: 1 },
+  discount: { type: Number, default: 0 },
   
   // Facilities (boolean flags for quick filtering)
   facilities: {
@@ -61,6 +69,9 @@ const PropertySchema = new mongoose.Schema({
     powerBackup: { type: Boolean, default: false }
   },
   
+  views: { type: Number, default: 0 },
+  clicks: { type: Number, default: 0 },
+  
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
@@ -71,4 +82,4 @@ PropertySchema.pre('save', function(next) {
   next();
 });
 
-module.exports = mongoose.model('Property', PropertySchema);
+module.exports = mongoose.models.Property || mongoose.model('Property', PropertySchema);

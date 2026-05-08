@@ -27,4 +27,46 @@ router.post('/upload-profile-photo', upload.single('profilePhoto'), async (req, 
   }
 });
 
+// POST /api/upload - Generic image upload
+router.post('/upload', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    const result = await cloudinary.uploader.upload_stream({
+      folder: 'roomhy/categories',
+      resource_type: 'image',
+    }, (error, result) => {
+      if (error) return res.status(500).json({ error: error.message });
+      return res.json({ url: result.secure_url });
+    });
+    result.end(req.file.buffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/upload-file - Support PDF, Word, etc.
+router.post('/upload-file', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    const result = await cloudinary.uploader.upload_stream({
+      folder: 'roomhy/chat_files',
+      resource_type: 'auto', 
+    }, (error, result) => {
+      if (error) return res.status(500).json({ error: error.message });
+      return res.json({ 
+        url: result.secure_url,
+        format: result.format,
+        original_name: req.file.originalname
+      });
+    });
+    result.end(req.file.buffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
