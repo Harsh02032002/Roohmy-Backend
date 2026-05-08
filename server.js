@@ -48,7 +48,8 @@ app.use((req, res, next) => {
         origin.includes('localhost') || 
         origin.includes('127.0.0.1') || 
         origin.includes('vercel.app') || 
-        origin.includes('roomhy.com');
+        origin.includes('roomhy.com') ||
+        origin === 'https://roohmy-frontend-ux44.vercel.app';
 
     if (isAllowedOrigin && origin) {
         res.setHeader('Access-Control-Allow-Origin', origin);
