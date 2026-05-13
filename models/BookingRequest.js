@@ -4,6 +4,7 @@ const bookingRequestSchema = new mongoose.Schema({
     property_id: { type: String, required: true, index: true },
     property_name: { type: String, required: true },
     area: { type: String, required: true, index: true },
+    city: { type: String },
     property_type: { type: String },
     rent_amount: { type: Number },
 
@@ -103,6 +104,9 @@ const bookingRequestSchema = new mongoose.Schema({
     user_rejected: { type: Boolean, default: false },
 
     whatsapp_enabled: { type: Boolean, default: true },
+
+    latitude: { type: Number },
+    longitude: { type: Number },
 
     created_at: { type: Date, default: Date.now },
     updated_at: { type: Date, default: Date.now }

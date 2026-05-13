@@ -282,6 +282,9 @@ exports.getPublicWebsiteProperties = async (req, res) => {
             }
         }
 
+        // Exclude test properties
+        filter.propertyName = { $nin: [/jhvhhjhjv/i, /test/i] };
+
         const properties = await WebsiteProperty.find(filter).sort({ createdAt: -1 });
         console.log(`📊 Found ${properties.length} properties from database`);
         

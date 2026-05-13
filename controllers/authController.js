@@ -621,6 +621,7 @@ exports.login = async (req, res) => {
                 id: user._id, 
                 name: user.name, 
                 email: user.email,
+                phone: user.phone,
                 role: user.role, 
                 loginId: user.loginId 
             } 
@@ -755,7 +756,7 @@ exports.setOwnerPassword = async (req, res) => {
 
         // Auto-login: return JWT on successful password set
         const token = generateToken(user);
-        res.json({ success: true, token, user: { id: user._id, name: user.name, role: user.role, loginId: user.loginId } });
+        res.json({ success: true, token, user: { id: user._id, name: user.name, email: user.email, phone: user.phone, role: user.role, loginId: user.loginId } });
     } catch (err) {
         console.error('setOwnerPassword error', err);
         res.status(500).json({ message: 'Server error' });
@@ -841,7 +842,7 @@ exports.setTenantPassword = async (req, res) => {
         res.json({ 
             success: true, 
             token, 
-            user: { id: user._id, name: user.name, role: user.role, loginId: user.loginId } 
+            user: { id: user._id, name: user.name, email: user.email, phone: user.phone, role: user.role, loginId: user.loginId } 
         });
     } catch (err) {
         console.error('setTenantPassword error', err);

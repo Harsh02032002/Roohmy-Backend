@@ -128,10 +128,13 @@ router.post('/create', async (req, res) => {
 });
 
 router.get('/inbox/:login_id', chatController.getInbox);
+router.get('/all-chats', chatController.getAllChats);
 router.get('/messages/:room_id', chatController.getMessages);
 router.get('/conversation', chatController.getConversation);
 router.post('/mark-read/:room_id', chatController.markAsRead);
+router.post('/send', chatController.sendMessage);
 router.get('/unread/:room_id', chatController.getUnreadCount);
 router.delete('/message/:message_id', chatController.deleteMessage);
+router.delete('/delete-conversation', chatController.deleteConversation);
 
 module.exports = router;

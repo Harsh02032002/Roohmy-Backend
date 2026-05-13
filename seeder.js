@@ -125,9 +125,9 @@ async function seedAdmin() {
             const shuffledAmenities = [...amenityPool].sort(() => 0.5 - Math.random());
             const selectedAmenities = shuffledAmenities.slice(0, 3 + (i % 4));
 
-            // Randomize images (4 per property)
+            // Randomize images (8 per property)
             const shuffledImages = [...imagePool].sort(() => 0.5 - Math.random());
-            const propertyImages = shuffledImages.slice(0, 4).map(url => `${url}?auto=compress&cs=tinysrgb&w=600`);
+            const propertyImages = shuffledImages.slice(0, 8).map(url => `${url}?auto=compress&cs=tinysrgb&w=600`);
 
             sampleProperties.push({
                 title: `${area} ${type} - ${i}`,
@@ -143,10 +143,10 @@ async function seedAdmin() {
                 monthlyRent: 8000 + (Math.floor(Math.random() * 20) * 500),
                 featuredImage: propertyImages[0],
                 propertyViews: [
-                    { label: "Main", images: [propertyImages[0]] },
-                    { label: "Room", images: [propertyImages[1]] },
-                    { label: "Interior", images: [propertyImages[2]] },
-                    { label: "Building", images: [propertyImages[3]] }
+                    { label: "Main", images: [propertyImages[0], propertyImages[4]] },
+                    { label: "Room", images: [propertyImages[1], propertyImages[5]] },
+                    { label: "Interior", images: [propertyImages[2], propertyImages[6]] },
+                    { label: "Building", images: [propertyImages[3], propertyImages[7]] }
                 ],
                 amenities: selectedAmenities
             });

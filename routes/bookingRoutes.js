@@ -71,7 +71,7 @@ router.post('/create-order', (req, res) => {
         const options = {
             amount: Math.round(amount * 100), // Convert to paise
             currency: currency,
-            receipt: receipt || `receipt_${Date.now()}`,
+            receipt: (receipt || `receipt_${Date.now()}`).substring(0, 40),
             notes: notes || {}
         };
 

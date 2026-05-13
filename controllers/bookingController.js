@@ -145,6 +145,7 @@ exports.createBookingRequest = async (req, res) => {
             property_id,
             property_name,
             area,
+            city: req.body.city || filter_criteria?.city || null,
             property_type,
             rent_amount,
             user_id,
@@ -162,7 +163,9 @@ exports.createBookingRequest = async (req, res) => {
             whatsapp_enabled: whatsapp_enabled || true,
             area_manager_id: manager ? manager._id : null,
             status: 'pending',
-            visit_status: 'not_scheduled'
+            visit_status: 'not_scheduled',
+            latitude: req.body.latitude || null,
+            longitude: req.body.longitude || null
         });
 
         await newRequest.save();
@@ -170,17 +173,24 @@ exports.createBookingRequest = async (req, res) => {
 
         // Create owner in-app notification for real-time panel alerts.
         try {
+            let notificationMessage = `You have a new ${request_type} request for ${property_name}.`;
+            if (request_type === 'bid' && bid_amount && rent_amount && bid_amount < rent_amount) {
+                notificationMessage = `A user (${name}) is interested in ${property_name}. Their budget is ₹${bid_amount}, but your rent is ₹${rent_amount}. Can you offer a lower rate?`;
+            }
+
             await Notification.create({
                 toRole: 'owner',
                 toLoginId: ownerLoginId,
-                from: 'system',
-                type: 'owner_new_booking_request',
+                from: name || 'Interested User',
+                type: 'owner_new_booking_request', // Reverted from match type
                 meta: {
+                    title: request_type === 'bid' ? 'New Bid Received!' : 'New Booking Request!',
                     bookingId: String(newRequest._id || ''),
                     propertyName: property_name || '',
                     guestName: name || '',
-                    checkInDate: newRequest.check_in_date || '',
-                    amount: rent_amount || bid_amount || 0
+                    message: notificationMessage,
+                    amount: bid_amount || rent_amount || 0,
+                    chatEnabled: true
                 },
                 read: false
             });

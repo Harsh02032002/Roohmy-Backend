@@ -61,8 +61,8 @@ exports.addProperty = async (req, res) => {
             featuredImage: property.featuredImage || (property.images && property.images[0]) || "",
             propertyInfo: {
                 name: property.title || 'Property',
-                city: property.city || 'Unknown',
-                area: property.locality || 'Unknown',
+                city: property.city || (property.address?.split(',').pop().trim()) || 'Unknown',
+                area: property.locality || property.area || 'Unknown',
                 address: property.address || '',
                 rent: property.monthlyRent || 0,
                 propertyType: property.propertyType || 'pg',
@@ -140,7 +140,17 @@ exports.getAllProperties = async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
-        const total = await Property.countDocuments();
+        
+        // Run counts in parallel
+        const [total, publishedCount, inactiveCount, rejectedCount] = await Promise.all([
+            Property.countDocuments(),
+            Property.countDocuments({ $or: [{ isLiveOnWebsite: true }, { status: 'active' }] }),
+            Property.countDocuments({ status: 'inactive' }),
+            Property.countDocuments({ status: 'blocked' })
+        ]);
+        
+        const pendingCount = total - (publishedCount + inactiveCount + rejectedCount);
+
         const properties = await Property.find()
             .populate('owner', 'name phone email')
             .sort({ createdAt: -1 })
@@ -152,7 +162,13 @@ exports.getAllProperties = async (req, res) => {
             properties, 
             total,
             page,
-            totalPages: Math.ceil(total / limit)
+            totalPages: Math.ceil(total / limit),
+            stats: {
+                published: publishedCount,
+                pending: Math.max(0, pendingCount),
+                inactive: inactiveCount,
+                rejected: rejectedCount
+            }
         });
     } catch (err) {
         console.error("Get Properties Error:", err);
@@ -202,8 +218,8 @@ exports.updateProperty = async (req, res) => {
           featuredImage: property.featuredImage || (property.images && property.images[0]) || "",
           propertyInfo: {
             name: property.title || 'Property',
-            city: property.city || 'Unknown',
-            area: property.locality || 'Unknown',
+            city: property.city || (property.address?.split(',').pop().trim()) || 'Unknown',
+            area: property.locality || property.area || 'Unknown',
             address: property.address || '',
             rent: property.monthlyRent || 0,
             propertyType: property.propertyType || 'pg',
@@ -295,8 +311,8 @@ exports.publishProperty = async (req, res) => {
                 featuredImage: property.featuredImage || (property.images && property.images[0]) || "",
                 propertyInfo: {
                     name: property.title || 'Property',
-                    city: property.city || 'Unknown',
-                    area: property.locality || 'Unknown',
+                    city: property.city || (property.address?.split(',').pop().trim()) || 'Unknown',
+                    area: property.locality || property.area || 'Unknown',
                     address: property.address || '',
                     rent: property.monthlyRent || 0,
                     propertyType: property.propertyType || 'pg',
