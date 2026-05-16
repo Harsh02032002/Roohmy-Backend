@@ -1,0 +1,129 @@
+[2026-05-15T15:59:59.630Z] FAILED: Email to h2248370@gmail.com via SMTP. Error: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to
+535 5.7.8  https://support.google.com/mail/?p=BadCredentials d9443c01a7336-2bd5cfe4973sm63995685ad.41 - gsmtp
+[2026-05-15T16:00:03.519Z] FAILED: Email to h2248370@gmail.com via Mailjet. Error: Invalid login: 535 5.7.8 Error: authentication failed: (reason unavailable)
+[2026-05-15T16:00:30.145Z] FAILED: Email to h2248370@gmail.com via SMTP. Error: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to
+535 5.7.8  https://support.google.com/mail/?p=BadCredentials 98e67ed59e1d1-369517aadb1sm3091847a91.9 - gsmtp
+[2026-05-15T16:00:34.506Z] FAILED: Email to h2248370@gmail.com via Mailjet. Error: Invalid login: 535 5.7.8 Error: authentication failed: (reason unavailable)
+[DEBUG] Trying Gmail Service with User: helloroomhy@gmail.com, Pass: nrz...dhd
+[2026-05-15T16:01:28.823Z] FAILED: Email to h2248370@gmail.com via SMTP. Error: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to
+535 5.7.8  https://support.google.com/mail/?p=BadCredentials 98e67ed59e1d1-369513fe6f2sm3075879a91.0 - gsmtp
+[DEBUG] Trying Mailjet SMTP with User: 06509cf06f9c6b3d9135025f45a8ece2, Pass: 251...a72
+[2026-05-15T16:01:33.533Z] FAILED: Email to h2248370@gmail.com via Mailjet. Error: Invalid login: 535 5.7.8 Error: authentication failed: (reason unavailable)
+[DEBUG] Trying Gmail Service with User: helloroomhy@gmail.com, Pass: nrz...dhd
+[2026-05-15T16:02:04.367Z] FAILED: Email to h2248370@gmail.com via SMTP. Error: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to
+535 5.7.8  https://support.google.com/mail/?p=BadCredentials d2e1a72fcca58-83f19661261sm8485510b3a.3 - gsmtp
+[DEBUG] Trying Mailjet SMTP with User: 06509cf06f9c6b3d9135025f45a8ece2, Pass: 251...a72
+[2026-05-15T16:02:08.340Z] FAILED: Email to h2248370@gmail.com via Mailjet. Error: Invalid login: 535 5.7.8 Error: authentication failed: (reason unavailable)
+[DEBUG] Trying Gmail Service with User: helloroomhy@gmail.com, Pass: nrz...dhd
+[2026-05-15T16:03:05.294Z] FAILED: Email to h2248370@gmail.com via SMTP. Error: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to
+535 5.7.8  https://support.google.com/mail/?p=BadCredentials 98e67ed59e1d1-3696e550dfcsm86963a91.1 - gsmtp
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Trying Gmail Service with User: helloroomhy@gmail.com, Pass: nrz...dhd
+[2026-05-15T16:03:55.223Z] FAILED: Email to h2248370@gmail.com via SMTP. Error: connect ETIMEDOUT 192.178.211.109:465
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[DEBUG] Trying Gmail Service with User: helloroomhy@gmail.com, Pass: nrz...dhd
+[2026-05-15T16:04:31.408Z] FAILED: Email to h2248370@gmail.com via SMTP. Error: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to
+535 5.7.8  https://support.google.com/mail/?p=BadCredentials d9443c01a7336-2bd5c26355csm61780765ad.35 - gsmtp
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-15T16:05:05.941Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying Gmail Service with User: helloroomhy@gmail.com, Pass: nrz...dhd
+[2026-05-15T16:05:29.015Z] FAILED: Email to h2248370@gmail.com via SMTP. Error: connect ETIMEDOUT 192.178.211.109:465
+[DEBUG] Attempting WhatsApp copy for h2248370@gmail.com...
+[2026-05-15T16:05:30.177Z] WHATSAPP: Delivered to 0 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-15T16:11:26.660Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying Gmail Service with User: helloroomhy@gmail.com, Pass: nrz...dhd
+[2026-05-15T16:11:28.442Z] FAILED: Email to harshdeep20020203@gmail.com via SMTP. Error: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to
+535 5.7.8  https://support.google.com/mail/?p=BadCredentials d2e1a72fcca58-83f19c5ce1fsm6424177b3a.35 - gsmtp
+[DEBUG] Attempting WhatsApp copy for harshdeep20020203@gmail.com...
+[2026-05-15T16:11:29.527Z] WHATSAPP: Delivered to 0 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-15T16:12:22.764Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: helloroomhy@gmail.com, Pass: nrz...dhd
+[2026-05-15T16:12:24.560Z] FAILED: Email to harshdeep20020203@gmail.com via SMTP. Error: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to
+535 5.7.8  https://support.google.com/mail/?p=BadCredentials d9443c01a7336-2bd5cfe47bdsm65117755ad.44 - gsmtp
+[DEBUG] Attempting WhatsApp copy for harshdeep20020203@gmail.com...
+[2026-05-15T16:12:25.540Z] WHATSAPP: Delivered to 0 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-15T16:13:00.455Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: helloroomhy@gmail.com, Pass: nrz...dhd
+[2026-05-15T16:13:02.304Z] FAILED: Email to harshdeep20020203@gmail.com via SMTP. Error: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to
+535 5.7.8  https://support.google.com/mail/?p=BadCredentials d9443c01a7336-2bd5bd5fb35sm63605405ad.12 - gsmtp
+[DEBUG] Attempting WhatsApp copy for harshdeep20020203@gmail.com...
+[2026-05-15T16:13:03.203Z] WHATSAPP: Delivered to 0 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-15T16:13:23.421Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: helloroomhy@gmail.com, Pass: nrz...dhd
+[2026-05-15T16:13:27.137Z] FAILED: Email to test_roomhy_704427804@gmail.com via SMTP. Error: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to
+535 5.7.8  https://support.google.com/mail/?p=BadCredentials d9443c01a7336-2bd5c264241sm61701695ad.36 - gsmtp
+[DEBUG] Attempting WhatsApp copy for test_roomhy_704427804@gmail.com...
+[2026-05-15T16:13:27.291Z] WHATSAPP: Delivered to 0 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-15T16:16:56.199Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: helloroomhy@gmail.com, Pass: nrz...dhd
+[2026-05-15T16:16:58.247Z] FAILED: Email to harshdeep20020203@gmail.com via SMTP. Error: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to
+535 5.7.8  https://support.google.com/mail/?p=BadCredentials d9443c01a7336-2bd5d2360e8sm68278035ad.82 - gsmtp
+[DEBUG] Attempting WhatsApp copy for harshdeep20020203@gmail.com...
+[2026-05-15T16:16:58.760Z] WHATSAPP: Delivered to 0 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-15T16:21:54.399Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: helloroomhy@gmail.com, Pass: nrz...dhd
+[2026-05-15T16:21:56.203Z] FAILED: Email to harshdeep20020203@gmail.com via SMTP. Error: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to
+535 5.7.8  https://support.google.com/mail/?p=BadCredentials 98e67ed59e1d1-3695a0efa7esm911381a91.11 - gsmtp
+[DEBUG] Attempting WhatsApp copy for harshdeep20020203@gmail.com...
+[2026-05-15T16:21:57.106Z] WHATSAPP: Delivered to 0 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-15T16:22:45.603Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: helloroomhy@gmail.com, Pass: nrz...dhd
+[2026-05-15T16:22:49.911Z] FAILED: Email to harshdeep20020203@gmail.com via SMTP. Error: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to
+535 5.7.8  https://support.google.com/mail/?p=BadCredentials d9443c01a7336-2bd5d235e04sm65547025ad.80 - gsmtp
+[DEBUG] Attempting WhatsApp copy for harshdeep20020203@gmail.com...
+[2026-05-15T16:22:51.641Z] WHATSAPP: Delivered to 0 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-15T16:25:33.338Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: helloroomhy@gmail.com, Pass: nrz...dhd
+[2026-05-15T16:25:35.809Z] FAILED: Email to harshdeep20020203@gmail.com via SMTP. Error: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to
+535 5.7.8  https://support.google.com/mail/?p=BadCredentials d9443c01a7336-2bd5d11d659sm62658075ad.73 - gsmtp
+[DEBUG] Attempting WhatsApp copy for harshdeep20020203@gmail.com...
+[2026-05-15T16:25:36.776Z] WHATSAPP: Delivered to 0 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-15T18:21:45.040Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: helloroomhy@gmail.com, Pass: nrz...dhd
+[2026-05-15T18:21:47.313Z] FAILED: Email to harshdeep20020203@gmail.com via SMTP. Error: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to
+535 5.7.8  https://support.google.com/mail/?p=BadCredentials d2e1a72fcca58-83f19f7cca8sm6820983b3a.56 - gsmtp
+[DEBUG] Attempting WhatsApp copy for harshdeep20020203@gmail.com...
+[2026-05-15T18:21:48.227Z] WHATSAPP: Delivered to 0 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-15T18:25:46.737Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: helloroomhy@gmail.com, Pass: nrz...dhd
+[2026-05-15T18:25:48.411Z] FAILED: Email to harshdeep20020203@gmail.com via SMTP. Error: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to
+535 5.7.8  https://support.google.com/mail/?p=BadCredentials d9443c01a7336-2bd5bd5fc47sm62553365ad.10 - gsmtp
+[DEBUG] Attempting WhatsApp copy for harshdeep20020203@gmail.com...
+[2026-05-15T18:25:49.510Z] WHATSAPP: Delivered to 0 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-15T18:27:28.199Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: helloroomhy@gmail.com, Pass: nrz...dhd
+[2026-05-15T18:27:29.782Z] FAILED: Email to harshdeep20020203@gmail.com via SMTP. Error: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to
+535 5.7.8  https://support.google.com/mail/?p=BadCredentials d2e1a72fcca58-83f24cd0422sm7860169b3a.18 - gsmtp
+[DEBUG] Attempting WhatsApp copy for harshdeep20020203@gmail.com...
+[2026-05-15T18:27:30.687Z] WHATSAPP: Delivered to 0 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-16T09:16:28.175Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: harshdeep20020203@gmail.com, Pass: uyh...oei
+[2026-05-16T09:16:33.625Z] SUCCESS: Email to harsh20020203@gmail.com via SMTP
+[DEBUG] Attempting WhatsApp copy for harsh20020203@gmail.com...
+[2026-05-16T09:16:34.683Z] WHATSAPP: Delivered to 0 recipients

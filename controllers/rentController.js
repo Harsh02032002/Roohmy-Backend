@@ -1197,3 +1197,40 @@ exports.getPlatformPayoutSummary = async (req, res) => {
         return res.status(500).json({ success: false, message: err.message || 'Failed to fetch payout summary' });
     }
 };
+
+exports.testTenantEmail = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ success: false, message: 'Email required' });
+
+        const mailer = require('../utils/mailer');
+        const subject = 'RoomHy System Check - Multiple Channel Verification';
+        const text = 'Testing email delivery priorities: 1. Mailjet API, 2. Gmail SMTP.';
+        const html = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                <div style="background-color: #6366f1; color: white; padding: 20px; text-align: center;">
+                    <h2 style="margin: 0;">RoomHy System Check</h2>
+                </div>
+                <div style="padding: 25px; color: #374151; line-height: 1.6;">
+                    <p>Hello,</p>
+                    <p>This is a <strong>multi-channel delivery test</strong> triggered from the RoomHy server.</p>
+                    <p>Current configuration status:</p>
+                    <ul style="padding-left: 20px;">
+                        <li><strong>Primary:</strong> Mailjet HTTP API</li>
+                        <li><strong>Fallback:</strong> Gmail SMTP Relay</li>
+                    </ul>
+                    <p>If you received this, the delivery system is functional.</p>
+                </div>
+            </div>
+        `;
+
+        const sent = await mailer.sendMail(email, subject, text, html);
+        return res.json({ 
+            success: sent, 
+            message: sent ? 'Email sent successfully' : 'Email delivery failed (check mail_log.txt)' 
+        });
+    } catch (error) {
+        console.error('testTenantEmail controller error:', error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};

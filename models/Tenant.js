@@ -6,23 +6,45 @@ const TenantSchema = new mongoose.Schema({
     phone: { type: String, required: true },
     email: { type: String },
     dob: { type: String },
+    gender: { type: String },
     guardianNumber: { type: String },
     
     // Reference to assigned property & room
     property: { type: mongoose.Schema.Types.ObjectId, ref: 'Property', required: true },
     room: { type: mongoose.Schema.Types.ObjectId, ref: 'Room' },
     roomNo: { type: String }, // Store room number for quick reference
+    building: { type: String },
+    floor: { type: String },
     bedNo: { type: String }, // Specific bed in room (e.g., "A", "B")
     
     // Rental Details
     moveInDate: { type: Date },
     agreedRent: { type: Number },
+    rentAgreementType: { type: String },
+    paymentFrequency: { type: String },
+    
+    // Additional Details
+    occupation: { type: String },
+    company: { type: String },
+    emergencyContact: {
+        name: { type: String },
+        phone: { type: String },
+        relationship: { type: String }
+    },
+    remarks: { type: String },
     
     // Login Credentials (generated during assignment)
     loginId: { type: String, unique: true, sparse: true }, // e.g., ROOMHYTNT4821
     tempPassword: { type: String }, // Stored temporarily; user will set own password
     ownerLoginId: { type: String },
     propertyTitle: { type: String },
+
+    // Financial Details for Assignment
+    securityDepositTotal: { type: Number, default: 0 },
+    securityDepositPaid: { type: Number, default: 0 },
+    securityDepositBalance: { type: Number, default: 0 },
+    electricityCharge: { type: Number, default: 0 },
+    maintenanceCharge: { type: Number, default: 0 },
     
     // User Reference
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

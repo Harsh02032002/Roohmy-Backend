@@ -9,6 +9,16 @@ const ApprovedPropertySchema = new mongoose.Schema({
     },
     propertyId: { type: String },
     enquiry_id: { type: String },
+    propertyCategory: { type: String },
+    state: { type: String },
+    pincode: { type: String },
+    landmark: { type: String },
+    contact: {
+        name: { type: String },
+        number: { type: String },
+        email: { type: String }
+    },
+    videoUrl: { type: String },
     images: [{ type: String }],
     featuredImage: { type: String },
     propertyInfo: {
@@ -126,6 +136,63 @@ const ApprovedPropertySchema = new mongoose.Schema({
         tv: { type: Boolean, default: false },
         powerBackup: { type: Boolean, default: false }
     },
+    // Wizard Data Support
+    roomTypes: [{
+        type: { type: String },
+        desc: { type: String },
+        totalRooms: { type: String },
+        totalBeds: { type: String },
+        occupancy: { type: Number },
+        pricePerBed: { type: String },
+        pricePerRoom: { type: String },
+        images: [{ type: String }]
+    }],
+    propertyDetails: {
+        totalArea: { type: String },
+        yearBuilt: { type: String },
+        propertyAge: { type: String },
+        floors: { type: String },
+        liftAvailable: { type: String },
+        parkingAvailable: { type: String },
+        noticePeriod: { type: String },
+        genderPref: { type: String },
+        preferredFor: {
+          students: { type: Boolean },
+          professionals: { type: Boolean },
+          both: { type: Boolean },
+          family: { type: Boolean }
+        }
+    },
+    pricing: {
+        rentType: { type: String },
+        securityDeposit: { type: String },
+        advanceRent: { type: String },
+        noticePeriod: { type: String },
+        lockInPeriod: { type: String },
+        discountPercent: { type: String },
+        includedInRent: { type: Object },
+        additionalCharges: [{
+          name: { type: String },
+          amount: { type: String },
+          per: { type: String }
+        }],
+        cancellationPolicy: { type: String }
+    },
+    policies: {
+        smokingAllowed: { type: String },
+        alcoholAllowed: { type: String },
+        petsAllowed: { type: String },
+        cookingAllowed: { type: String },
+        visitorsAllowed: { type: String },
+        visitorTiming: { type: String },
+        partyAllowed: { type: String },
+        outsideFood: { type: String },
+        quietHours: { type: String },
+        quietHoursTiming: { type: String },
+        earlyCheckIn: { type: String }
+    },
+    tenantDescription: { type: String },
+
     latitude: { type: Number },
     longitude: { type: Number },
 

@@ -1,5 +1,6 @@
-const https = require('https');
+const https = require("https");
 const nodemailer = require('nodemailer');
+const fs = require('fs');
 
 function parseBooleanEnv(value, fallback = false) {
     if (typeof value === 'undefined' || value === null || value === '') return fallback;
@@ -10,16 +11,16 @@ function getMailerConfig() {
     return {
         fromEmail: process.env.FROM_EMAIL || 'no-reply@roomhy.com',
         fromName: process.env.FROM_NAME || 'RoomHy',
-        smtpHost: process.env.SMTP_HOST || 'smtp.gmail.com',
+        smtpHost: (process.env.SMTP_HOST || 'smtp.gmail.com').trim(),
         smtpPort: Number(process.env.SMTP_PORT || 587),
         smtpSecure: parseBooleanEnv(process.env.SMTP_SECURE, false),
         smtpUser: (process.env.SMTP_USER || '').trim(),
         smtpPass: (process.env.SMTP_PASS || '').replace(/\s+/g, ''),
-        smtpDebug: parseBooleanEnv(process.env.SMTP_DEBUG, false),
-        smtpLogger: parseBooleanEnv(process.env.SMTP_LOGGER, false),
+        smtpDebug: parseBooleanEnv(process.env.SMTP_DEBUG, true),
+        smtpLogger: parseBooleanEnv(process.env.SMTP_LOGGER, true),
         smtpRequireTls: parseBooleanEnv(process.env.SMTP_REQUIRE_TLS, false),
         smtpIgnoreTls: parseBooleanEnv(process.env.SMTP_IGNORE_TLS, false),
-        smtpTlsRejectUnauthorized: parseBooleanEnv(process.env.SMTP_TLS_REJECT_UNAUTHORIZED, true),
+        smtpTlsRejectUnauthorized: parseBooleanEnv(process.env.SMTP_TLS_REJECT_UNAUTHORIZED, false),
         smtpConnectionTimeout: Number(process.env.SMTP_CONNECTION_TIMEOUT || 30000),
         smtpGreetingTimeout: Number(process.env.SMTP_GREETING_TIMEOUT || 30000),
         smtpSocketTimeout: Number(process.env.SMTP_SOCKET_TIMEOUT || 30000),
@@ -163,22 +164,6 @@ async function resolvePhoneByEmail(email) {
         if (tenantDoc && tenantDoc.phone) return tenantDoc.phone;
     } catch (_) {}
 
-    try {
-        const Owner = require('../models/Owner');
-        const ownerDoc = await Owner.findOne({
-            $or: [{ email: normalizedEmail }, { 'profile.email': normalizedEmail }]
-        }).select('phone profile.phone').lean();
-        if (ownerDoc) {
-            return ownerDoc.phone || (ownerDoc.profile && ownerDoc.profile.phone) || '';
-        }
-    } catch (_) {}
-
-    try {
-        const AreaManager = require('../models/AreaManager');
-        const managerDoc = await AreaManager.findOne({ email: normalizedEmail }).select('phone').lean();
-        if (managerDoc && managerDoc.phone) return managerDoc.phone;
-    } catch (_) {}
-
     return '';
 }
 
@@ -206,47 +191,6 @@ async function sendWhatsAppMessage(toPhone, body, cfg) {
     }
 
     console.warn('WhatsApp send failed:', response.status, response.body);
-    return false;
-}
-
-async function sendWhatsAppTemplateMessage(toPhone, templateName, languageCode, bodyParameters = [], cfg) {
-    if (!toPhone || !templateName) return false;
-
-    const endpoint = `https://graph.facebook.com/${cfg.whatsappApiVersion}/${cfg.whatsappPhoneNumberId}/messages`;
-    const payload = {
-        messaging_product: 'whatsapp',
-        to: toPhone,
-        type: 'template',
-        template: {
-            name: templateName,
-            language: {
-                code: languageCode || 'en_US'
-            }
-        }
-    };
-
-    if (bodyParameters.length) {
-        payload.template.components = [
-            {
-                type: 'body',
-                parameters: bodyParameters.map((value) => ({
-                    type: 'text',
-                    text: String(value)
-                }))
-            }
-        ];
-    }
-
-    const response = await postJson(endpoint, payload, {
-        Authorization: `Bearer ${cfg.whatsappAccessToken}`
-    });
-
-    if (response.status >= 200 && response.status < 300) {
-        console.log('WhatsApp template sent to', toPhone, 'template:', templateName);
-        return true;
-    }
-
-    console.warn('WhatsApp template send failed:', response.status, response.body);
     return false;
 }
 
@@ -278,6 +222,17 @@ async function sendWhatsAppByEmailRecipients(recipients, subject, text, html, cf
 }
 
 function buildTransportOptions({ host, port, secure, user, pass, cfg, service = '', name = '' }) {
+    const isGmail = service === 'gmail' || (host && host.toLowerCase().includes('gmail'));
+    
+    if (isGmail) {
+        return {
+            service: 'gmail',
+            auth: { user, pass },
+            debug: cfg.smtpDebug,
+            logger: cfg.smtpLogger
+        };
+    }
+
     const options = {
         host,
         port,
@@ -306,34 +261,99 @@ function buildTransportOptions({ host, port, secure, user, pass, cfg, service = 
 }
 
 async function sendViaSmtp({ cfg, host, port, secure, user, pass, label, service = '', name = '' }, mailOptions) {
+    const obfuscatedPass = (pass || '').length > 6 ? `${pass.slice(0, 3)}...${pass.slice(-3)}` : '***';
+    fs.appendFileSync('mail_log.txt', `[DEBUG] Trying ${label} with User: ${user}, Pass: ${obfuscatedPass}\n`);
+    
     const transporter = nodemailer.createTransport(
         buildTransportOptions({ host, port, secure, user, pass, cfg, service, name })
     );
 
     await transporter.verify();
     await transporter.sendMail(mailOptions);
-    console.log(`Email sent via ${label} to`, mailOptions.to, 'subject:', mailOptions.subject);
+    console.log(`Email sent via ${label} to`, mailOptions.to);
     return true;
+}
+
+async function sendViaMailjetApi(recipients, subject, text, html, cfg) {
+    const endpoint = 'https://api.mailjet.com/v3.1/send';
+    const payload = {
+        Messages: [
+            {
+                From: {
+                    Email: cfg.fromEmail,
+                    Name: cfg.fromName
+                },
+                To: recipients,
+                Subject: subject,
+                TextPart: text,
+                HTMLPart: html
+            }
+        ]
+    };
+
+    const auth = Buffer.from(`${cfg.mailjetUser}:${cfg.mailjetPass}`).toString('base64');
+    const response = await postJson(endpoint, payload, {
+        Authorization: `Basic ${auth}`
+    });
+
+    if (response.status >= 200 && response.status < 300) {
+        console.log('Email sent via Mailjet API to', recipients.map(r => r.Email).join(', '));
+        return true;
+    }
+
+    console.warn('Mailjet API failed:', response.status, response.body);
+    return false;
 }
 
 async function sendMail(to, subject, text, html) {
     const cfg = getMailerConfig();
+    
+    console.log('[DEBUG] sendMail start. Config Check:');
+    console.log(`  - SMTP_USER: ${cfg.smtpUser}`);
+    console.log(`  - SMTP_PASS Length: ${cfg.smtpPass?.length || 0}`);
+    console.log(`  - MAILJET_API_KEY Length: ${cfg.mailjetApiKey?.length || 0}`);
+
     const recipients = normalizeRecipients(to);
+    
+    // Debug config state
+    const hasSmtp = isSmtpConfigured(cfg);
+    const hasMailjet = isMailjetConfigured(cfg);
+    fs.appendFileSync('mail_log.txt', `[DEBUG] sendMail start. hasSmtp: ${hasSmtp}, hasMailjet: ${hasMailjet}\n`);
+
     if (!recipients.length) {
         console.warn('sendMail skipped: no valid recipients');
         return false;
     }
     let emailSent = false;
+    const toStr = recipients.map((x) => x.Email).join(', ');
     const mailOptions = {
         from: `"${cfg.fromName}" <${cfg.fromEmail}>`,
-        to: recipients.map((x) => x.Email).join(', '),
+        to: toStr,
         subject: subject || 'RoomHy Notification',
         text: text || '',
         html: html || ''
     };
 
+    // Priority 1: Mailjet API (More reliable than SMTP, bypasses port blocks)
+    if (!emailSent && isMailjetConfigured(cfg)) {
+        try {
+            fs.appendFileSync('mail_log.txt', `[DEBUG] Attempting Mailjet API... (User length: ${cfg.mailjetUser.length})\n`);
+            emailSent = await sendViaMailjetApi(recipients, subject, text, html, cfg);
+            if (emailSent) {
+                fs.appendFileSync('mail_log.txt', `[${new Date().toISOString()}] SUCCESS: Email to ${toStr} via Mailjet API\n`);
+            } else {
+                fs.appendFileSync('mail_log.txt', `[${new Date().toISOString()}] FAILED: Mailjet API rejected the request (Check keys)\n`);
+            }
+        } catch (err) {
+            console.error('Mailjet API failed:', err && err.message);
+            fs.appendFileSync('mail_log.txt', `[${new Date().toISOString()}] FAILED: Email to ${toStr} via Mailjet API. Error: ${err.message}\n`);
+        }
+    }
+
+    // Priority 2: Primary SMTP (Gmail/Custom)
     if (!emailSent && isSmtpConfigured(cfg)) {
         try {
+            const isGmail = cfg.smtpHost.toLowerCase().includes('gmail');
             await sendViaSmtp({
                 cfg,
                 host: cfg.smtpHost,
@@ -341,87 +361,31 @@ async function sendMail(to, subject, text, html) {
                 secure: cfg.smtpSecure,
                 user: cfg.smtpUser,
                 pass: cfg.smtpPass,
-                label: 'primary SMTP',
-                service: cfg.smtpService,
+                label: 'SMTP',
+                service: '',
                 name: cfg.smtpName
             }, mailOptions);
             emailSent = true;
+            fs.appendFileSync('mail_log.txt', `[${new Date().toISOString()}] SUCCESS: Email to ${toStr} via SMTP\n`);
         } catch (err) {
-            console.error('Failed sending email via SMTP:', err && err.message);
+            console.error('SMTP Delivery failed:', err && err.message);
+            fs.appendFileSync('mail_log.txt', `[${new Date().toISOString()}] FAILED: Email to ${toStr} via SMTP. Error: ${err.message}\n`);
         }
     }
 
-    if (!emailSent && isMailjetConfigured(cfg)) {
-        try {
-            await sendViaSmtp({
-                cfg,
-                host: cfg.mailjetHost,
-                port: cfg.mailjetPort,
-                secure: cfg.mailjetSecure,
-                user: cfg.mailjetUser,
-                pass: cfg.mailjetPass,
-                label: 'Mailjet SMTP'
-            }, mailOptions);
-            emailSent = true;
-        } catch (err) {
-            console.error('Failed sending email via Mailjet SMTP:', err && err.message);
-        }
-    }
-
-    // WhatsApp copy for the same recipient (resolved by email -> phone), if configured.
+    // WhatsApp copy
     let whatsappSent = false;
     try {
+        fs.appendFileSync('mail_log.txt', `[DEBUG] Attempting WhatsApp copy for ${toStr}...\n`);
         const whatsappDeliveredCount = await sendWhatsAppByEmailRecipients(recipients, subject, text, html, cfg);
         whatsappSent = whatsappDeliveredCount > 0;
+        fs.appendFileSync('mail_log.txt', `[${new Date().toISOString()}] WHATSAPP: Delivered to ${whatsappDeliveredCount} recipients\n`);
     } catch (err) {
         console.warn('WhatsApp notification copy failed:', err && err.message);
-    }
-
-    if (!emailSent && !isSmtpConfigured(cfg) && !isMailjetConfigured(cfg)) {
-        console.warn('sendMail skipped: no SMTP provider configured (set SMTP env values or Mailjet SMTP credentials)');
+        fs.appendFileSync('mail_log.txt', `[${new Date().toISOString()}] WHATSAPP FAILED: ${err.message}\n`);
     }
 
     return emailSent || whatsappSent;
-}
-
-async function sendDirectWhatsAppMessage(toPhone, subject, text, html = '') {
-    const cfg = getMailerConfig();
-    if (!isWhatsAppConfigured(cfg)) {
-        return false;
-    }
-
-    const normalizedPhone = normalizePhoneNumber(toPhone, cfg.whatsappDefaultCountryCode);
-    if (!normalizedPhone) {
-        return false;
-    }
-
-    const body = buildWhatsAppMessage(subject, text, html);
-    return sendWhatsAppMessage(normalizedPhone, body, cfg);
-}
-
-async function sendDirectWhatsAppOtp(toPhone, otp) {
-    const cfg = getMailerConfig();
-    if (!isWhatsAppConfigured(cfg)) {
-        return false;
-    }
-
-    const normalizedPhone = normalizePhoneNumber(toPhone, cfg.whatsappDefaultCountryCode);
-    if (!normalizedPhone) {
-        return false;
-    }
-
-    if (!cfg.whatsappOtpTemplateName) {
-        console.warn('WhatsApp OTP skipped: WHATSAPP_OTP_TEMPLATE_NAME is not configured.');
-        return false;
-    }
-
-    return sendWhatsAppTemplateMessage(
-        normalizedPhone,
-        cfg.whatsappOtpTemplateName,
-        cfg.whatsappOtpTemplateLanguage,
-        [otp],
-        cfg
-    );
 }
 
 function credentialsHtml(loginId, password, role = 'Account') {
@@ -497,8 +461,61 @@ async function sendCredentials(toEmail, loginId, password, role = 'Account') {
     const subject = `${role} credentials for RoomHy`;
     const html = credentialsHtml(loginId, password, role);
     const text = `Your ${role} credentials\nLogin ID: ${loginId}\nPassword: ${password}`;
-    // Non-blocking caller can await if desired
     return sendMail(toEmail, subject, text, html);
 }
 
-module.exports = { sendCredentials, sendMail, sendDirectWhatsAppMessage, sendDirectWhatsAppOtp };
+async function sendDirectWhatsAppOtp(toPhone, otp) {
+    const cfg = getMailerConfig();
+    if (!isWhatsAppConfigured(cfg) || !cfg.whatsappOtpTemplateName) {
+        console.warn('WhatsApp OTP skip: not configured or template name missing');
+        return false;
+    }
+
+    const endpoint = `https://graph.facebook.com/${cfg.whatsappApiVersion}/${cfg.whatsappPhoneNumberId}/messages`;
+    const payload = {
+        messaging_product: 'whatsapp',
+        to: toPhone,
+        type: 'template',
+        template: {
+            name: cfg.whatsappOtpTemplateName,
+            language: {
+                code: cfg.whatsappOtpTemplateLanguage || 'en_US'
+            },
+            components: [
+                {
+                    type: 'body',
+                    parameters: [
+                        {
+                            type: 'text',
+                            text: String(otp)
+                        }
+                    ]
+                },
+                {
+                    type: 'button',
+                    sub_type: 'url',
+                    index: 0,
+                    parameters: [
+                        {
+                            type: 'text',
+                            text: String(otp)
+                        }
+                    ]
+                }
+            ]
+        }
+    };
+
+    const response = await postJson(endpoint, payload, {
+        Authorization: `Bearer ${cfg.whatsappAccessToken}`
+    });
+
+    if (response.status >= 200 && response.status < 300) {
+        return true;
+    }
+
+    console.warn('WhatsApp Direct OTP failed:', response.status, response.body);
+    return false;
+}
+
+module.exports = { sendCredentials, sendMail, sendWhatsAppMessage, sendDirectWhatsAppOtp };

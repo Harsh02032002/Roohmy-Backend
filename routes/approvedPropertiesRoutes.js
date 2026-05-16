@@ -589,26 +589,29 @@ router.get('/public/approved', async (req, res) => {
 
             propertyInfo: prop.propertyInfo,
 
-            propertyViews: prop.propertyViews,
-
+            propertyViews: prop.propertyViews || [],
             amenities: parseAmenities(prop.amenities || prop.propertyInfo?.amenities || []),
-
-            monthlyRent: prop.propertyInfo?.rent || 0,
-
-            gender: prop.propertyInfo?.genderSuitability || 'Co-ed',
-
+            roomTypes: prop.roomTypes || [],
+            facilities: prop.facilities || {},
+            propertyDetails: prop.propertyDetails || {},
+            pricing: prop.pricing || {},
+            policies: prop.policies || {},
+            tenantDescription: prop.tenantDescription || "",
+            videoUrl: prop.videoUrl || "",
+            state: prop.state || "",
+            pincode: prop.pincode || "",
+            landmark: prop.landmark || "",
+            contact: prop.contact || {},
+            monthlyRent: prop.monthlyRent || prop.propertyInfo?.rent || 0,
+            gender: prop.gender || prop.propertyInfo?.genderSuitability || 'Co-ed',
             status: prop.status,
-
             isLiveOnWebsite: prop.isLiveOnWebsite,
-
             submittedAt: prop.submittedAt,
-
             approvedAt: prop.approvedAt,
             updatedAt: prop.updatedAt,
             generatedCredentials: prop.generatedCredentials,
-
             ownerLoginId: prop.generatedCredentials?.loginId,
-
+            description: prop.description || prop.propertyInfo?.description || "",
             createdBy: prop.approvedBy
           };
         });

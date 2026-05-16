@@ -17,8 +17,18 @@ const PropertySchema = new mongoose.Schema({
   visitId: { type: String, index: true },
   city: { type: String, index: true },
   locality: { type: String, index: true },
+  state: { type: String },
+  pincode: { type: String },
+  landmark: { type: String },
+  propertyCategory: { type: String },
   propertyId: { type: String },
   enquiry_id: { type: String },
+  contact: {
+    name: { type: String },
+    number: { type: String },
+    email: { type: String }
+  },
+  videoUrl: { type: String },
   
   // Amenities - Array of amenity objects with icon and name
   amenities: [{
@@ -52,7 +62,70 @@ const PropertySchema = new mongoose.Schema({
   gender: { type: String, enum: ['male', 'female', 'any'], default: 'any' },
   monthlyRent: { type: Number, default: 0 },
   
-  // Room details
+  // Room details (new structure for Wizard)
+  roomTypes: [{
+    type: { type: String },
+    desc: { type: String },
+    totalRooms: { type: String },
+    totalBeds: { type: String },
+    occupancy: { type: Number },
+    pricePerBed: { type: String },
+    pricePerRoom: { type: String },
+    images: [{ type: String }]
+  }],
+
+  // Additional details from Wizard
+  propertyDetails: {
+    totalArea: { type: String },
+    yearBuilt: { type: String },
+    propertyAge: { type: String },
+    floors: { type: String },
+    liftAvailable: { type: String },
+    parkingAvailable: { type: String },
+    noticePeriod: { type: String },
+    genderPref: { type: String },
+    preferredFor: {
+      students: { type: Boolean },
+      professionals: { type: Boolean },
+      both: { type: Boolean },
+      family: { type: Boolean }
+    }
+  },
+
+  // Pricing details from Wizard
+  pricing: {
+    rentType: { type: String },
+    securityDeposit: { type: String },
+    advanceRent: { type: String },
+    noticePeriod: { type: String },
+    lockInPeriod: { type: String },
+    discountPercent: { type: String },
+    includedInRent: { type: Object },
+    additionalCharges: [{
+      name: { type: String },
+      amount: { type: String },
+      per: { type: String }
+    }],
+    cancellationPolicy: { type: String }
+  },
+
+  // Policies/House Rules from Wizard
+  policies: {
+    smokingAllowed: { type: String },
+    alcoholAllowed: { type: String },
+    petsAllowed: { type: String },
+    cookingAllowed: { type: String },
+    visitorsAllowed: { type: String },
+    visitorTiming: { type: String },
+    partyAllowed: { type: String },
+    outsideFood: { type: String },
+    quietHours: { type: String },
+    quietHoursTiming: { type: String },
+    earlyCheckIn: { type: String }
+  },
+
+  tenantDescription: { type: String },
+  
   totalRooms: { type: Number, default: 0 },
   bedsPerRoom: { type: Number, default: 1 },
   discount: { type: Number, default: 0 },

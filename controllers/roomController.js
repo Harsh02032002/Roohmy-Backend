@@ -77,3 +77,24 @@ exports.createRoom = async (req, res) => {
         return res.status(500).json({ message: 'Server error' });
     }
 };
+
+const mongoose = require('mongoose');
+
+exports.getRoomsByProperty = async (req, res) => {
+    try {
+        const { propertyId } = req.params;
+        console.log("Searching rooms for propertyId:", propertyId);
+        
+        // Ensure propertyId is a valid ObjectId
+        if (!mongoose.Types.ObjectId.isValid(propertyId)) {
+          return res.status(400).json({ message: "Invalid Property ID format" });
+        }
+        
+        const rooms = await Room.find({ property: new mongoose.Types.ObjectId(propertyId) });
+        console.log(`Found ${rooms.length} rooms for property ${propertyId}`);
+        res.json(rooms);
+    } catch (err) {
+        console.error("Error in getRoomsByProperty:", err);
+        res.status(500).json({ message: err.message });
+    }
+};

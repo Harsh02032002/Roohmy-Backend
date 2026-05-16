@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const rentController = require('../controllers/rentController');
 
+// Test email delivery route
+router.post('/test-tenant-email', rentController.testTenantEmail);
+
 // Create new rent record
 router.post('/', rentController.createRent);
 
