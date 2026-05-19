@@ -11,7 +11,9 @@ const deriveLocationCode = (input = {}) => {
     input.locationCode,
     input.location_code,
     input.areaCode,
-    input.area_code
+    input.area_code,
+    input.locality,
+    input.city
   ];
 
   for (const candidate of candidates) {
@@ -94,8 +96,8 @@ exports.addProperty = async (req, res) => {
     const propertyData = { ...req.body };
     propertyData.locationCode = deriveLocationCode(propertyData);
 
-    // Auto-geocode address to lat/long
-    if (propertyData.address && propertyData.address.trim()) {
+    // Auto-geocode address to lat/long ONLY IF coordinates are not already provided
+    if ((!propertyData.latitude || !propertyData.longitude) && propertyData.address && propertyData.address.trim()) {
       try {
         const geo = await geocodeAddress(propertyData.address);
         propertyData.latitude = geo.latitude;
@@ -106,9 +108,16 @@ exports.addProperty = async (req, res) => {
       }
     }
 
-    propertyData.status = 'active'; // Auto active for superadmin
-    propertyData.isPublished = true;
-    propertyData.isLiveOnWebsite = true;
+    // If added by owner, it should be pending approval. Otherwise, auto-active for superadmin.
+    if (propertyData.ownerLoginId) {
+        propertyData.status = 'pending_approval';
+        propertyData.isPublished = false;
+        propertyData.isLiveOnWebsite = false;
+    } else {
+        propertyData.status = 'active'; // Auto active for superadmin
+        propertyData.isPublished = true;
+        propertyData.isLiveOnWebsite = true;
+    }
 
     const property = new Property(propertyData);
     await property.save();
@@ -155,7 +164,7 @@ exports.getAllProperties = async (req, res) => {
         ]);
         
         const pendingCount = total - (publishedCount + inactiveCount + rejectedCount);
-
+ 
         const properties = await Property.find()
             .populate('owner', 'name phone email')
             .sort({ createdAt: -1 })
@@ -190,8 +199,8 @@ exports.updateProperty = async (req, res) => {
       updateData.locationCode = deriveLocationCode(updateData);
     }
     
-    // Auto-geocode if address changed
-    if (updateData.address && updateData.address.trim()) {
+    // Auto-geocode if address changed and coordinates are not already provided
+    if ((!updateData.latitude || !updateData.longitude) && updateData.address && updateData.address.trim()) {
       try {
         const geo = await geocodeAddress(updateData.address);
         updateData.latitude = geo.latitude;

@@ -177,31 +177,23 @@ mongoose.connect(mongoUri, mongoOptions)
         startServer();
     });
 
-// Handle serverless environment
-if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
-    // For serverless, we need to handle the connection differently
-    console.log('🌐 Serverless environment detected');
-    
-    // Export the app for Vercel
-    module.exports = async (req, res) => {
-        // Ensure MongoDB is connected
-        if (mongoose.connection.readyState !== 1) {
-            try {
-                await mongoose.connect(mongoUri, mongoOptions);
-                console.log('✅ MongoDB Connected (serverless)');
-            } catch (err) {
-                console.error('❌ MongoDB connection error (serverless):', err.message);
-                return res.status(500).json({
-                    success: false,
-                    message: 'Database connection failed'
-                });
-            }
+// Database connection middleware to ensure connection on every request (crucial for Serverless Vercel)
+app.use(async (req, res, next) => {
+    if (mongoose.connection.readyState !== 1) {
+        console.log('🔌 Mongoose not connected, connecting now...');
+        try {
+            await mongoose.connect(mongoUri, mongoOptions);
+            console.log('✅ MongoDB Connected (via request middleware)');
+        } catch (err) {
+            console.error('❌ MongoDB connection error in middleware:', err.message);
+            return res.status(500).json({
+                success: false,
+                message: 'Database connection failed'
+            });
         }
-        
-        // Handle the request
-        app(req, res);
-    };
-}
+    }
+    next();
+});
 
 mongoose.connection.on('connected', () => console.log('✅ Mongoose connected'));
 mongoose.connection.on('error', (err) => console.error('❌ Mongoose error', err && err.message));
