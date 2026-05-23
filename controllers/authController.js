@@ -590,15 +590,39 @@ exports.tenantForgotPasswordReset = async (req, res) => {
     }
 };
 
-// Login using email or loginId
+// Login using email, loginId, or phone number
 exports.login = async (req, res) => {
     try {
-        const { identifier, password } = req.body; // identifier = email or loginId
+        const { identifier, password } = req.body; // identifier = email, loginId, or phone
         const normalizedIdentifier = String(identifier || '').trim();
-        const emailIdentifier = normalizedIdentifier.includes('@') ? normalizedIdentifier.toLowerCase() : normalizedIdentifier;
-        const loginIdentifier = /^roomhy/i.test(normalizedIdentifier) ? normalizedIdentifier.toUpperCase() : normalizedIdentifier;
+        
+        // Determine identifier type
+        const isEmail = normalizedIdentifier.includes('@');
+        const isPhone = /^\d{10}$/.test(normalizedIdentifier); // 10 digit phone
+        const isLoginId = /^roomhy/i.test(normalizedIdentifier);
+        
         if (!normalizedIdentifier || !password) return res.status(400).json({ message: 'Missing credentials' });
-        const user = await User.findOne({ $or: [{ email: emailIdentifier }, { loginId: loginIdentifier }] });
+        
+        // Build query based on identifier type
+        let query = {};
+        if (isEmail) {
+            query = { email: normalizedIdentifier.toLowerCase() };
+        } else if (isPhone) {
+            query = { phone: normalizedIdentifier };
+        } else if (isLoginId) {
+            query = { loginId: normalizedIdentifier.toUpperCase() };
+        } else {
+            // Try all three
+            query = { 
+                $or: [
+                    { email: normalizedIdentifier.toLowerCase() }, 
+                    { loginId: normalizedIdentifier.toUpperCase() },
+                    { phone: normalizedIdentifier }
+                ] 
+            };
+        }
+        
+        const user = await User.findOne(query);
         if (!user) return res.status(401).json({ message: 'Invalid credentials' });
 
         // Block disabled users
@@ -606,9 +630,9 @@ exports.login = async (req, res) => {
             return res.status(403).json({ message: 'Account disabled' });
         }
 
-        // Owners must login only using their generated loginId — disallow email-based login for owners
-        if (user.role === 'owner' && loginIdentifier !== user.loginId) {
-            return res.status(403).json({ message: 'Owners must login using their Owner ID' });
+        // Owners can login using loginId or phone (not email)
+        if (user.role === 'owner' && isEmail) {
+            return res.status(403).json({ message: 'Owners must login using Owner ID or Phone Number' });
         }
 
         const isMatch = await user.matchPassword(password);

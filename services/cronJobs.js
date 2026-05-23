@@ -1,11 +1,15 @@
 const cron = require('node-cron');
 let Rent = null;
+let Tenant = null;
+let Notification = null;
 const { sendMail } = require('../utils/mailer');
 
 try {
     Rent = require('../models/Rent');
+    Tenant = require('../models/Tenant');
+    Notification = require('../models/Notification');
 } catch (err) {
-    console.warn('⚠️  Rent model not found:', err.message);
+    console.warn('⚠️ Models not found:', err.message);
 }
 
 // Send rent reminders: Every day at 10 AM during collection period (10-15th)
@@ -132,6 +136,72 @@ const autoReminderSchedule = cron.schedule('30 10 * * *', async () => {
         console.log(`? Sent ${sent} daily auto reminders`);
     } catch (err) {
         console.error('? Daily auto reminder job error:', err.message);
+    }
+});
+
+// Daily agreement renewal checks (11-month rule)
+const agreementRenewalSchedule = cron.schedule('0 9 * * *', async () => {
+    if (!Tenant || !Notification) {
+        console.warn('⚠️  Skipping agreement renewal job - dependencies not loaded');
+        return;
+    }
+    console.log('🔔 Running agreement renewal check job...');
+    try {
+        const activeTenants = await Tenant.find({ status: 'active' });
+        const now = new Date();
+        
+        let notifsSent = 0;
+        for (const tenant of activeTenants) {
+            const startDate = tenant.moveInDate || tenant.agreementSignedAt || tenant.createdAt;
+            if (!startDate) continue;
+            
+            const start = new Date(startDate);
+            const monthDiff = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+            
+            // Trigger exactly when the day of month matches
+            if (now.getDate() === start.getDate()) {
+                if (monthDiff === 10) {
+                    await Notification.create({
+                        toLoginId: tenant.loginId,
+                        type: 'system',
+                        title: 'Agreement Renewal Upcoming',
+                        message: 'Your 11-month agreement will expire in 1 month. Please prepare for renewal.',
+                        read: false
+                    });
+                    if (tenant.ownerLoginId) {
+                        await Notification.create({
+                            toLoginId: tenant.ownerLoginId,
+                            type: 'system',
+                            title: 'Tenant Agreement Expiring',
+                            message: `The 11-month agreement for tenant ${tenant.name} will expire in 1 month.`,
+                            read: false
+                        });
+                    }
+                    notifsSent++;
+                } else if (monthDiff === 11) {
+                    await Notification.create({
+                        toLoginId: tenant.loginId,
+                        type: 'system',
+                        title: 'ACTION REQUIRED: Agreement Expired',
+                        message: 'Your 11-month agreement has expired. You have 3 days to renew your agreement.',
+                        read: false
+                    });
+                    if (tenant.ownerLoginId) {
+                        await Notification.create({
+                            toLoginId: tenant.ownerLoginId,
+                            type: 'system',
+                            title: 'Tenant Agreement Expired',
+                            message: `The 11-month agreement for tenant ${tenant.name} has expired. They have 3 days to renew.`,
+                            read: false
+                        });
+                    }
+                    notifsSent++;
+                }
+            }
+        }
+        console.log(`✅ Sent ${notifsSent} agreement renewal notifications`);
+    } catch (err) {
+        console.error('❌ Agreement renewal job error:', err.message);
     }
 });
 
@@ -330,11 +400,13 @@ module.exports = {
         console.log('   - Rent reminders: Daily 10 AM (10-15th)');
         console.log('   - Delayed payment reminders: 9 AM, 2 PM, 6 PM (after 15th)');
         console.log('   - Auto reminders: Daily 10:30 AM (enabled manually per unpaid rent)');
+        console.log('   - Agreement renewals: Daily 9 AM (10 and 11 month checks)');
     },
     stopCronJobs: () => {
         rentReminderSchedule.stop();
         delayedReminderSchedule.stop();
         autoReminderSchedule.stop();
+        agreementRenewalSchedule.stop();
         console.log('🛑 Cron jobs stopped');
     }
 };

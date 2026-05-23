@@ -98,3 +98,120 @@ exports.getRoomsByProperty = async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 };
+
+// Add electricity reading to a room
+exports.addElectricityReading = async (req, res) => {
+    try {
+        const { roomId } = req.params;
+        const { unitCost, initialReading, initialReadingDate, finalReading, finalReadingDate, description } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(roomId)) {
+            return res.status(400).json({ message: "Invalid Room ID format" });
+        }
+
+        if (!initialReading || !initialReadingDate || !finalReading || !finalReadingDate) {
+            return res.status(400).json({ message: "All reading fields are required" });
+        }
+
+        const room = await Room.findById(roomId);
+        if (!room) {
+            return res.status(404).json({ message: "Room not found" });
+        }
+
+        // Calculate units consumed and total cost
+        const unitsConsumed = Number(finalReading) - Number(initialReading);
+        const cost = unitCost || room.electricity?.unitCost || 0;
+        const totalCost = unitsConsumed * cost;
+
+        // Update unit cost if provided
+        if (unitCost) {
+            room.electricity = room.electricity || {};
+            room.electricity.unitCost = unitCost;
+        }
+
+        // Add reading
+        room.electricity = room.electricity || { unitCost: 0, readings: [] };
+        room.electricity.readings = room.electricity.readings || [];
+        room.electricity.readings.push({
+            initialReading: Number(initialReading),
+            initialReadingDate: new Date(initialReadingDate),
+            finalReading: Number(finalReading),
+            finalReadingDate: new Date(finalReadingDate),
+            unitsConsumed,
+            totalCost,
+            description: description || ''
+        });
+
+        await room.save();
+
+        return res.status(201).json({ 
+            success: true, 
+            message: "Reading added successfully",
+            reading: room.electricity.readings[room.electricity.readings.length - 1],
+            room 
+        });
+    } catch (err) {
+        console.error("Error adding electricity reading:", err);
+        return res.status(500).json({ message: err.message });
+    }
+};
+
+// Get electricity readings for a room
+exports.getElectricityReadings = async (req, res) => {
+    try {
+        const { roomId } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(roomId)) {
+            return res.status(400).json({ message: "Invalid Room ID format" });
+        }
+
+        const room = await Room.findById(roomId).populate('property', 'title ownerLoginId');
+        if (!room) {
+            return res.status(404).json({ message: "Room not found" });
+        }
+
+        return res.json({ 
+            success: true,
+            room: {
+                _id: room._id,
+                title: room.title,
+                property: room.property,
+                electricity: room.electricity || { unitCost: 0, readings: [] }
+            }
+        });
+    } catch (err) {
+        console.error("Error fetching electricity readings:", err);
+        return res.status(500).json({ message: err.message });
+    }
+};
+
+// Get all rooms for an owner
+exports.getRoomsByOwner = async (req, res) => {
+    try {
+        const { ownerLoginId } = req.params;
+        const properties = await Property.find({ ownerLoginId });
+        const propertyIds = properties.map(p => p._id);
+        const rooms = await Room.find({ property: { $in: propertyIds } }).populate('property', 'title');
+        res.json({ success: true, rooms });
+    } catch (err) {
+        console.error("Error getting rooms by owner:", err);
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// Toggle promoted status
+exports.togglePromoted = async (req, res) => {
+    try {
+        const { roomId } = req.params;
+        const room = await Room.findById(roomId);
+        if (!room) {
+            return res.status(404).json({ success: false, message: "Room not found" });
+        }
+        room.isPromoted = !room.isPromoted;
+        await room.save();
+        res.json({ success: true, room });
+    } catch (err) {
+        console.error("Error toggling promoted status:", err);
+        res.status(500).json({ success: false, message: err.message });
+    }
+};

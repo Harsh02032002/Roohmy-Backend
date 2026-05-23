@@ -12,6 +12,10 @@ const complaintSchema = new mongoose.Schema({
         default: 'Tenant',
         index: true
     },
+    ownerLoginId: {
+        type: String,
+        index: true
+    },
     tenantName: {
         type: String,
         required: true
@@ -34,8 +38,7 @@ const complaintSchema = new mongoose.Schema({
     },
     category: {
         type: String,
-        required: true,
-        enum: ['Plumbing', 'Electrical', 'Furniture', 'Appliances', 'Cleaning', 'Internet', 'Other']
+        required: true
     },
     description: {
         type: String,
@@ -50,12 +53,26 @@ const complaintSchema = new mongoose.Schema({
     status: {
         type: String,
         required: true,
-        enum: ['Open', 'In Progress', 'Resolved'],
+        enum: ['Open', 'In Progress', 'Resolved', 'Rejected', 'Taken'],
         default: 'Open'
+    },
+    escalated: {
+        type: Boolean,
+        default: false
+    },
+    imageStr: {
+        type: String
     },
     assignedTo: {
         type: String,
         default: null
+    },
+    assignedStaffId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Employee'
+    },
+    assignedStaffName: {
+        type: String
     },
     createdAt: {
         type: Date,

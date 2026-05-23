@@ -108,8 +108,8 @@ app.use((req, res, next) => {
 app.use(compressionMiddleware);
 
 // Body Parsers
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Security Hardening
 app.use(mongoSanitizeMiddleware);
@@ -274,6 +274,34 @@ try {
     console.log('  ✓ reviewRoutes');
     app.use('/api/rents', require('./routes/rentRoutes'));
     console.log('  ✓ rentRoutes');
+    app.use('/api/complaints', require('./routes/complaintRoutes'));
+    console.log('  ✓ complaintRoutes');
+    app.use('/api/maintenance', require('./routes/maintenanceRoutes'));
+    console.log('  ✓ maintenanceRoutes');
+    app.use('/api/property-managers', require('./routes/propertyManagerRoutes'));
+    console.log('  ✓ propertyManagerRoutes');
+    app.use('/api/employees', require('./routes/employeeRoutes'));
+    console.log('  ✓ employeeRoutes');
+    app.use('/api/hr', require('./routes/hrRoutes'));
+    console.log('  ✓ hrRoutes');
+    app.use('/api/visitors', require('./routes/visitorRoutes'));
+    console.log('  ✓ visitorRoutes');
+    app.use('/api/leaves', require('./routes/leaveRequestRoutes'));
+    console.log('  ✓ leaveRequestRoutes');
+    app.use('/api/tenant-attendance', require('./routes/tenantAttendanceRoutes'));
+    console.log('  ✓ tenantAttendanceRoutes');
+    app.use('/api/gates', require('./routes/gateRoutes'));
+    console.log('  ✓ gateRoutes');
+    app.use('/api/announcements', require('./routes/announcementRoutes'));
+    console.log('  ✓ announcementRoutes');
+    app.use('/api/coupons', require('./routes/couponRoutes'));
+    console.log('  ✓ couponRoutes');
+    app.use('/api/marketing-assets', require('./routes/marketingAssetRoutes'));
+    console.log('  ✓ marketingAssetRoutes');
+    app.use('/api/reports', require('./routes/reportRoutes'));
+    console.log('  ✓ reportRoutes');
+    app.use('/api/tenant-gate', require('./routes/tenantGateRoutes'));
+    console.log('  ✓ tenantGateRoutes');
     app.use('/api/user', require('./routes/userRoutes'));
     app.use('/api/superadmin', require('./routes/superadminRoutes'));
     app.use('/api/amenities', require('./routes/amenityRoutes'));

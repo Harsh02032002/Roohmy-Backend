@@ -110,6 +110,20 @@ const TenantSchema = new mongoose.Schema({
         enum: ['pending', 'submitted', 'verified', 'rejected'],
         default: 'pending'
     },
+    policeVerification: {
+        status: { type: String, enum: ['pending', 'submitted', 'verified', 'rejected'], default: 'pending' },
+        receiptFile: { type: String },
+        submittedAt: { type: Date }
+    },
+    moveoutRequest: {
+        status: { type: String, enum: ['none', 'pending', 'approved', 'rejected'], default: 'none' },
+        requestedDate: { type: Date },
+        reason: { type: String },
+        submittedAt: { type: Date },
+        refundStatus: { type: String, enum: ['pending', 'cleared', 'deductions_applied'], default: 'pending' },
+        duesAtMoveout: { type: Number, default: 0 },
+        refundAmount: { type: Number, default: 0 }
+    },
     
     // Owner who assigned
     assignedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
