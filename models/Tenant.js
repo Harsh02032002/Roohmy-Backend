@@ -38,6 +38,7 @@ const TenantSchema = new mongoose.Schema({
     tempPassword: { type: String }, // Stored temporarily; user will set own password
     ownerLoginId: { type: String },
     propertyTitle: { type: String },
+    profileFilled: { type: Boolean, default: false },
 
     // Financial Details for Assignment
     securityDepositTotal: { type: Number, default: 0 },

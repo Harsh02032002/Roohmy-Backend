@@ -565,6 +565,7 @@ router.post('/tenant/profile', async (req, res) => {
         if (email) tenant.email = email;
         tenant.dob = dob || tenant.dob;
         tenant.guardianNumber = guardianNumber || tenant.guardianNumber;
+        tenant.profileFilled = true;
         if (propertyName) tenant.propertyTitle = propertyName;
         if (roomNo) tenant.roomNo = roomNo;
         if (agreedRent !== undefined && agreedRent !== null && agreedRent !== '') tenant.agreedRent = Number(agreedRent);

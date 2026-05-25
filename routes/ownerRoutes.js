@@ -238,4 +238,10 @@ router.post('/:loginId/request-head', protect, auditTrail('owners'), async (req,
     }
 });
 
+// Add tenant to property (Owner)
+router.post('/:ownerLoginId/properties/:propertyId/tenants', auditTrail('tenants'), ownerController.addTenantToProperty);
+
+// Get tenants for owner's property
+router.get('/:ownerLoginId/properties/:propertyId/tenants', ownerController.getPropertyTenants);
+
 module.exports = router;

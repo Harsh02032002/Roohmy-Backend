@@ -23,4 +23,13 @@ router.delete('/:managerId', propertyManagerController.deletePropertyManager);
 // Reset manager password
 router.post('/:managerId/reset-password', propertyManagerController.resetManagerPassword);
 
+// Reset initial password from frontend
+router.post('/reset-initial-password', propertyManagerController.resetInitialPassword);
+
+// Add tenant to property manager's assigned property
+router.post('/:managerId/tenants', propertyManagerController.addTenantToProperty);
+
+// Get tenants for property manager's assigned property
+router.get('/:managerId/tenants', propertyManagerController.getPropertyManagerTenants);
+
 module.exports = router;

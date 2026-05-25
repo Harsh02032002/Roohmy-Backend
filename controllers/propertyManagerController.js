@@ -77,6 +77,16 @@ exports.loginPropertyManager = async (req, res) => {
       });
     }
 
+    if (manager.requirePasswordReset) {
+      return res.status(200).json({
+        success: true,
+        requireReset: true,
+        message: 'Password reset required',
+        managerId: manager._id,
+        loginId: manager.loginId
+      });
+    }
+
     const token = jwt.sign(
       { 
         managerId: manager._id, 
@@ -180,7 +190,8 @@ exports.createPropertyManager = async (req, res) => {
         canViewReports: true,
         canManageComplaints: true,
         canManageRooms: true
-      }
+      },
+      requirePasswordReset: true
     });
 
     // Send credentials email
@@ -352,6 +363,7 @@ exports.resetManagerPassword = async (req, res) => {
     
     manager.password = hashedPassword;
     manager.updatedAt = Date.now();
+    manager.requirePasswordReset = true;
     await manager.save();
 
     // Send password reset email
@@ -378,6 +390,234 @@ exports.resetManagerPassword = async (req, res) => {
     return res.status(500).json({ 
       success: false, 
       message: err.message 
+    });
+  }
+};
+
+// Reset initial password for manager
+exports.resetInitialPassword = async (req, res) => {
+  try {
+    const { loginId, oldPassword, newPassword } = req.body;
+
+    if (!loginId || !oldPassword || !newPassword) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Login ID, old password, and new password are required' 
+      });
+    }
+
+    const manager = await PropertyManager.findOne({ loginId });
+
+    if (!manager) {
+      return res.status(404).json({ success: false, message: 'Manager not found' });
+    }
+
+    const isPasswordValid = await bcrypt.compare(oldPassword, manager.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ success: false, message: 'Invalid old password' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    manager.password = hashedPassword;
+    manager.requirePasswordReset = false;
+    manager.updatedAt = Date.now();
+    await manager.save();
+
+    return res.json({
+      success: true,
+      message: 'Password reset successfully. You can now login.'
+    });
+  } catch (err) {
+    console.error('Error in resetInitialPassword:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Add tenant to property (Property Manager)
+exports.addTenantToProperty = async (req, res) => {
+  try {
+    const { managerId } = req.params;
+    const {
+      name, phone, email, roomNo, bedNo, moveInDate, agreedRent,
+      dob, gender, building, floor, rentAgreementType, paymentFrequency, 
+      additional, idProof,
+      securityDepositTotal, securityDepositPaid, securityDepositBalance,
+      electricityCharge, maintenanceCharge, electricityUnitCost
+    } = req.body;
+
+    // Verify manager exists and has permission
+    const manager = await PropertyManager.findById(managerId)
+      .populate('assignedProperty');
+
+    if (!manager) {
+      return res.status(404).json({
+        success: false,
+        message: 'Property manager not found'
+      });
+    }
+
+    if (!manager.permissions?.canAddTenants) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to add tenants'
+      });
+    }
+
+    if (manager.status !== 'active') {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account is inactive'
+      });
+    }
+
+    // Prepare tenant assignment request
+    const tenantAssignmentPayload = {
+      name,
+      phone,
+      email,
+      propertyId: manager.assignedProperty._id,
+      roomNo,
+      bedNo,
+      moveInDate,
+      agreedRent,
+      dob,
+      gender,
+      building,
+      floor,
+      rentAgreementType,
+      paymentFrequency,
+      additional,
+      idProof,
+      securityDepositTotal,
+      securityDepositPaid,
+      securityDepositBalance,
+      electricityCharge,
+      maintenanceCharge,
+      electricityUnitCost,
+      ownerLoginId: manager.ownerLoginId,
+      propertyTitle: manager.assignedProperty.title
+    };
+
+    // Create request object for tenant assignment
+    const mockReq = {
+      body: tenantAssignmentPayload,
+      user: {
+        id: manager._id
+      }
+    };
+
+    // Create response object to capture tenant assignment response
+    let tenantResponse = null;
+    let tenantError = null;
+
+    const mockRes = {
+      status: function(code) {
+        this.statusCode = code;
+        return this;
+      },
+      json: function(data) {
+        tenantResponse = { statusCode: this.statusCode || 200, data };
+        return this;
+      },
+      status201: function(code) {
+        this.statusCode = 201;
+        return this;
+      }
+    };
+
+    // Import and call tenant assignment
+    const tenantController = require('./tenantController');
+    
+    // Create a custom response handler
+    await new Promise((resolve, reject) => {
+      const originalJson = mockRes.json;
+      mockRes.json = function(data) {
+        tenantResponse = { statusCode: this.statusCode || 200, data };
+        resolve();
+        return this;
+      };
+      mockRes.status = function(code) {
+        this.statusCode = code;
+        return this;
+      };
+
+      tenantController.assignTenant(mockReq, mockRes).catch((err) => {
+        tenantError = err;
+        reject(err);
+      });
+    });
+
+    if (tenantError) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to assign tenant',
+        error: tenantError.message
+      });
+    }
+
+    if (!tenantResponse || !tenantResponse.data.success) {
+      return res.status(tenantResponse?.statusCode || 400).json(
+        tenantResponse?.data || { success: false, message: 'Failed to assign tenant' }
+      );
+    }
+
+    // Log action for audit
+    console.log(`✅ Tenant ${name} (${email}) added to property ${manager.assignedProperty.title} by manager ${manager.name}`);
+
+    // Return response with tenant assignment data
+    return res.status(201).json({
+      success: true,
+      message: 'Tenant added successfully to your property',
+      tenant: tenantResponse.data.tenant,
+      tenantCheckinLink: tenantResponse.data.tenantCheckinLink,
+      onboarding: tenantResponse.data.onboarding
+    });
+
+  } catch (err) {
+    console.error('Error adding tenant:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to add tenant',
+      error: err.message
+    });
+  }
+};
+
+// Get tenants for property manager's assigned property
+exports.getPropertyManagerTenants = async (req, res) => {
+  try {
+    const { managerId } = req.params;
+
+    const manager = await PropertyManager.findById(managerId)
+      .populate('assignedProperty');
+
+    if (!manager) {
+      return res.status(404).json({
+        success: false,
+        message: 'Property manager not found'
+      });
+    }
+
+    // Get tenants for the assigned property
+    const Tenant = require('../models/Tenant');
+    const tenants = await Tenant.find({ property: manager.assignedProperty._id })
+      .populate('property', 'title roomType locationCode ownerLoginId')
+      .sort({ createdAt: -1 });
+
+    return res.json({
+      success: true,
+      propertyId: manager.assignedProperty._id,
+      propertyTitle: manager.assignedProperty.title,
+      totalTenants: tenants.length,
+      tenants
+    });
+
+  } catch (err) {
+    console.error('Error fetching manager tenants:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch tenants',
+      error: err.message
     });
   }
 };

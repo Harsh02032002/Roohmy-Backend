@@ -125,7 +125,8 @@ exports.assignTenant = async (req, res) => {
             role: 'tenant',
             loginId,
             locationCode: effectiveLocationCode,
-            status: 'active'
+            status: 'active',
+            requirePasswordReset: true
         });
 
         // Create Tenant record

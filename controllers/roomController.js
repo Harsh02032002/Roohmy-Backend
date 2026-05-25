@@ -32,6 +32,18 @@ exports.createRoom = async (req, res) => {
             type: String(type).trim() || 'AC',
             beds: Number.isFinite(beds) && beds > 0 ? beds : 1,
             price: Number.isFinite(price) && price >= 0 ? price : 0,
+            unitType: req.body.unitType || 'Room',
+            floor: req.body.floor || '',
+            sharingType: req.body.sharingType || '',
+            remarks: req.body.remarks || '',
+            isAvailable: req.body.isAvailable !== undefined ? req.body.isAvailable : true,
+            facilities: req.body.facilities || [],
+            roomTypeFeatures: req.body.roomTypeFeatures || [],
+            media: req.body.media || [],
+            electricity: {
+                unitCost: Number(req.body.electricityUnitCost) || 0,
+                readings: []
+            },
             createdBy: user._id,
             status: 'inactive'
         });
@@ -212,6 +224,44 @@ exports.togglePromoted = async (req, res) => {
         res.json({ success: true, room });
     } catch (err) {
         console.error("Error toggling promoted status:", err);
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// Update a room
+exports.updateRoom = async (req, res) => {
+    try {
+        const { roomId } = req.params;
+        const updateData = req.body;
+        
+        // Ensure electricity unit cost maps properly if provided
+        if (updateData.electricityUnitCost !== undefined) {
+            updateData['electricity.unitCost'] = Number(updateData.electricityUnitCost);
+            delete updateData.electricityUnitCost;
+        }
+
+        const room = await Room.findByIdAndUpdate(roomId, { $set: updateData }, { new: true });
+        if (!room) {
+            return res.status(404).json({ success: false, message: "Room not found" });
+        }
+        res.json({ success: true, room });
+    } catch (err) {
+        console.error("Error updating room:", err);
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// Delete a room
+exports.deleteRoom = async (req, res) => {
+    try {
+        const { roomId } = req.params;
+        const room = await Room.findByIdAndDelete(roomId);
+        if (!room) {
+            return res.status(404).json({ success: false, message: "Room not found" });
+        }
+        res.json({ success: true, message: "Room deleted successfully" });
+    } catch (err) {
+        console.error("Error deleting room:", err);
         res.status(500).json({ success: false, message: err.message });
     }
 };

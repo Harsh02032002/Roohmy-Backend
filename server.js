@@ -274,6 +274,8 @@ try {
     console.log('  ✓ reviewRoutes');
     app.use('/api/rents', require('./routes/rentRoutes'));
     console.log('  ✓ rentRoutes');
+    app.use('/api/electricity', require('./routes/electricityRoutes'));
+    console.log('  ✓ electricityRoutes');
     app.use('/api/complaints', require('./routes/complaintRoutes'));
     console.log('  ✓ complaintRoutes');
     app.use('/api/maintenance', require('./routes/maintenanceRoutes'));

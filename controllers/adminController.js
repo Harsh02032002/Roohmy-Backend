@@ -306,7 +306,7 @@ exports.createUser = async (req, res) => {
         const existing = await User.findOne({ $or: [{ email }, { phone }, { loginId }] });
         if (existing) return res.status(409).json({ message: 'User already exists' });
 
-        const user = await User.create({ name, email, phone, password, role, loginId, locationCode });
+        const user = await User.create({ name, email, phone, password, role, loginId, locationCode, requirePasswordReset: true });
         const safeUser = { id: user._id, name: user.name, role: user.role, loginId: user.loginId, locationCode: user.locationCode };
 
         // Send credentials email if email present (non-blocking)

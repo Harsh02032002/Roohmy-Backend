@@ -22,6 +22,7 @@ const userSchema = new mongoose.Schema({
     // For Owners created via Visit
     status: { type: String, enum: ['active', 'blocked'], default: 'active' },
     isActive: { type: Boolean, default: true },
+    requirePasswordReset: { type: Boolean, default: false },
 
     // Profile fields
     profilePic: { type: String },

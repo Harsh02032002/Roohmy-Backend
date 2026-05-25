@@ -853,6 +853,7 @@ exports.setTenantPassword = async (req, res) => {
         if (!ok && !plainTempMatch) return res.status(401).json({ success: false, message: 'Invalid temporary password' });
 
         user.password = newPassword; // will be hashed by pre-save hook
+        user.requirePasswordReset = false;
         await user.save();
 
         if (tenant) {

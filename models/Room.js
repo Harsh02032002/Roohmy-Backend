@@ -17,6 +17,14 @@ const RoomSchema = new mongoose.Schema({
 	type: { type: String, default: 'AC' },
 	beds: { type: Number, default: 1 },
 	price: { type: Number, default: 0 },
+	unitType: { type: String, default: 'Room' },
+	floor: { type: String, default: '' },
+	sharingType: { type: String, default: '' },
+	remarks: { type: String, default: '' },
+	isAvailable: { type: Boolean, default: true },
+	facilities: { type: [String], default: [] },
+	roomTypeFeatures: { type: [String], default: [] },
+	media: { type: [Object], default: [] },
 	electricity: {
 		unitCost: { type: Number, default: 0 },
 		readings: [ElectricityReadingSchema]

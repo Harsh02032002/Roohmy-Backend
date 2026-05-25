@@ -21,4 +21,10 @@ router.get('/owner/:ownerLoginId', roomController.getRoomsByOwner);
 // Toggle promoted status
 router.put('/:roomId/toggle-promoted', roomController.togglePromoted);
 
+// Update a room
+router.put('/:roomId', protect, authorize('owner', 'superadmin'), roomController.updateRoom);
+
+// Delete a room
+router.delete('/:roomId', protect, authorize('owner', 'superadmin'), roomController.deleteRoom);
+
 module.exports = router;

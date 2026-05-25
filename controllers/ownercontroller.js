@@ -251,3 +251,189 @@ exports.getOwnerById = async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 };
+
+// Add tenant to property (Owner)
+exports.addTenantToProperty = async (req, res) => {
+    try {
+        const { ownerLoginId, propertyId } = req.params;
+        const {
+            name, phone, email, roomNo, bedNo, moveInDate, agreedRent,
+            dob, gender, building, floor, rentAgreementType, paymentFrequency, 
+            additional, idProof,
+            securityDepositTotal, securityDepositPaid, securityDepositBalance,
+            electricityCharge, maintenanceCharge, electricityUnitCost
+        } = req.body;
+
+        // Verify property belongs to owner
+        const normalizedOwnerId = String(ownerLoginId || '').toUpperCase();
+        const property = await Property.findById(propertyId);
+
+        if (!property) {
+            return res.status(404).json({
+                success: false,
+                message: 'Property not found'
+            });
+        }
+
+        if (property.ownerLoginId !== normalizedOwnerId) {
+            return res.status(403).json({
+                success: false,
+                message: 'Property does not belong to this owner'
+            });
+        }
+
+        // Prepare tenant assignment request
+        const tenantAssignmentPayload = {
+            name,
+            phone,
+            email,
+            propertyId: propertyId,
+            roomNo,
+            bedNo,
+            moveInDate,
+            agreedRent,
+            dob,
+            gender,
+            building,
+            floor,
+            rentAgreementType,
+            paymentFrequency,
+            additional,
+            idProof,
+            securityDepositTotal,
+            securityDepositPaid,
+            securityDepositBalance,
+            electricityCharge,
+            maintenanceCharge,
+            electricityUnitCost,
+            ownerLoginId: normalizedOwnerId,
+            propertyTitle: property.title
+        };
+
+        // Create request object for tenant assignment
+        const mockReq = {
+            body: tenantAssignmentPayload,
+            user: {
+                id: property.owner
+            }
+        };
+
+        // Create response object to capture tenant assignment response
+        let tenantResponse = null;
+        let tenantError = null;
+
+        const mockRes = {
+            status: function(code) {
+                this.statusCode = code;
+                return this;
+            },
+            json: function(data) {
+                tenantResponse = { statusCode: this.statusCode || 200, data };
+                return this;
+            }
+        };
+
+        // Import and call tenant assignment
+        const tenantController = require('./tenantController');
+        
+        // Create a custom response handler
+        await new Promise((resolve, reject) => {
+            const originalJson = mockRes.json;
+            mockRes.json = function(data) {
+                tenantResponse = { statusCode: this.statusCode || 200, data };
+                resolve();
+                return this;
+            };
+            mockRes.status = function(code) {
+                this.statusCode = code;
+                return this;
+            };
+
+            tenantController.assignTenant(mockReq, mockRes).catch((err) => {
+                tenantError = err;
+                reject(err);
+            });
+        });
+
+        if (tenantError) {
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to assign tenant',
+                error: tenantError.message
+            });
+        }
+
+        if (!tenantResponse || !tenantResponse.data.success) {
+            return res.status(tenantResponse?.statusCode || 400).json(
+                tenantResponse?.data || { success: false, message: 'Failed to assign tenant' }
+            );
+        }
+
+        // Log action for audit
+        console.log(`✅ Tenant ${name} (${email}) added to property ${property.title} by owner ${normalizedOwnerId}`);
+
+        // Return response with tenant assignment data
+        return res.status(201).json({
+            success: true,
+            message: 'Tenant added successfully to your property',
+            tenant: tenantResponse.data.tenant,
+            tenantCheckinLink: tenantResponse.data.tenantCheckinLink,
+            onboarding: tenantResponse.data.onboarding
+        });
+
+    } catch (err) {
+        console.error('Error adding tenant:', err);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to add tenant',
+            error: err.message
+        });
+    }
+};
+
+// Get tenants for owner's property
+exports.getPropertyTenants = async (req, res) => {
+    try {
+        const { ownerLoginId, propertyId } = req.params;
+
+        // Verify property belongs to owner
+        const normalizedOwnerId = String(ownerLoginId || '').toUpperCase();
+        const property = await Property.findById(propertyId);
+
+        if (!property) {
+            return res.status(404).json({
+                success: false,
+                message: 'Property not found'
+            });
+        }
+
+        if (property.ownerLoginId !== normalizedOwnerId) {
+            return res.status(403).json({
+                success: false,
+                message: 'Property does not belong to this owner'
+            });
+        }
+
+        // Get tenants for the property
+        const Tenant = require('../models/Tenant');
+        const tenants = await Tenant.find({ property: propertyId })
+            .populate('property', 'title roomType locationCode ownerLoginId')
+            .sort({ createdAt: -1 });
+
+        return res.json({
+            success: true,
+            propertyId: propertyId,
+            propertyTitle: property.title,
+            totalTenants: tenants.length,
+            tenants
+        });
+
+    } catch (err) {
+        console.error('Error fetching property tenants:', err);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to fetch tenants',
+            error: err.message
+        });
+    }
+};

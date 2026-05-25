@@ -7,6 +7,7 @@ const { authLimiter, otpLimiter, captchaProtection } = require('../middleware/se
 router.use(authLimiter);
 
 router.post('/login', authController.login);
+
 router.post('/register', authController.register);
 router.get('/me', protect, authController.me);
 
