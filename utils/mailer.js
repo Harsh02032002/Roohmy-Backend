@@ -388,6 +388,21 @@ async function sendMail(to, subject, text, html) {
     return emailSent || whatsappSent;
 }
 
+function getLoginUrlForRole(role) {
+    const frontendUrl = (process.env.FRONTEND_URL || process.env.WEB_APP_URL || 'https://admin.roomhy.com').replace(/\/$/, '');
+    const r = String(role || '').toLowerCase();
+    if (r.includes('owner')) {
+        return `${frontendUrl}/propertyowner/ownerlogin`;
+    }
+    if (r.includes('tenant')) {
+        return `${frontendUrl}/tenant/tenantlogin`;
+    }
+    if (r.includes('manager') || r.includes('employee') || r.includes('staff')) {
+        return `${frontendUrl}/superadmin/index`;
+    }
+    return `${frontendUrl}/superadmin/index`;
+}
+
 function credentialsHtml(loginId, password, role = 'Account') {
     return `<!DOCTYPE html>
 <html>
@@ -443,7 +458,7 @@ function credentialsHtml(loginId, password, role = 'Account') {
                 </div>
                 
                 <div style="text-align: center;">
-                    <a href="https://admin.roomhy.com" class="btn">Login to RoomHy</a>
+                    <a href="${getLoginUrlForRole(role)}" class="btn">Login to RoomHy</a>
                 </div>
             </div>
             <div class="footer">
@@ -458,9 +473,10 @@ function credentialsHtml(loginId, password, role = 'Account') {
 
 async function sendCredentials(toEmail, loginId, password, role = 'Account') {
     if (!toEmail) return;
+    const loginUrl = getLoginUrlForRole(role);
     const subject = `${role} credentials for RoomHy`;
     const html = credentialsHtml(loginId, password, role);
-    const text = `Your ${role} credentials\nLogin ID: ${loginId}\nPassword: ${password}`;
+    const text = `Your ${role} credentials\nLogin ID: ${loginId}\nPassword: ${password}\n\nLogin here: ${loginUrl}`;
     return sendMail(toEmail, subject, text, html);
 }
 
