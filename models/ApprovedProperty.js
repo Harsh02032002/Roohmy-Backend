@@ -33,6 +33,12 @@ const ApprovedPropertySchema = new mongoose.Schema({
         ownerEmail: { type: String },
         rent: { type: Number },
         deposit: { type: String },
+        roomCount: { type: Number, default: 0 },
+        bedCount: { type: Number, default: 0 },
+        vacantRooms: { type: Number, default: 0 },
+        vacantBeds: { type: Number, default: 0 },
+        occupiedRooms: { type: Number, default: 0 },
+        occupiedBeds: { type: Number, default: 0 },
         description: { type: String },
         amenities: [{ type: String }],
         genderSuitability: { type: String },
@@ -64,7 +70,23 @@ const ApprovedPropertySchema = new mongoose.Schema({
         default: Date.now,
         index: true
     },
-    approvedBy: { type: String },
+    reuploadRequests: [{
+        requestId: { type: String, required: true },
+        ownerLoginId: String,
+        roomId: String,
+        roomNo: String,
+        bedNo: Number,
+        securityDepositSettled: { type: Boolean, default: false },
+        wantsReupload: { type: Boolean, default: false },
+        status: {
+            type: String,
+            enum: ['pending', 'published', 'cancelled'],
+            default: 'pending'
+        },
+        requestedAt: { type: Date, default: Date.now },
+        publishedAt: Date,
+        propertyInfo: mongoose.Schema.Types.Mixed
+    }],
     bannerPhoto: { type: String },
     websiteBannerPhoto: { type: String },
     
@@ -214,5 +236,8 @@ ApprovedPropertySchema.pre('save', function(next) {
     this.updatedAt = new Date();
     next();
 });
+
+ApprovedPropertySchema.index({ isLiveOnWebsite: 1, status: 1, approvedAt: -1 });
+ApprovedPropertySchema.index({ status: 1, approvedAt: -1 });
 
 module.exports = mongoose.models.ApprovedProperty || mongoose.model('ApprovedProperty', ApprovedPropertySchema);

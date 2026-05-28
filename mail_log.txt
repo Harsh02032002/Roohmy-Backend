@@ -274,3 +274,31 @@
 [2026-05-23T11:31:23.855Z] SUCCESS: Email to harsh20020203@gmail.com via SMTP
 [DEBUG] Attempting WhatsApp copy for harsh20020203@gmail.com...
 [2026-05-23T11:31:24.321Z] WHATSAPP: Delivered to 0 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-27T08:51:24.001Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: harshdeep20020203@gmail.com, Pass: uyh...oei
+[2026-05-27T08:51:29.307Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[DEBUG] Attempting WhatsApp copy for pratapchoubey3@gmail.com...
+[2026-05-27T08:51:29.887Z] WHATSAPP: Delivered to 0 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-27T11:23:06.494Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: harshdeep20020203@gmail.com, Pass: uyh...oei
+[2026-05-27T11:23:20.360Z] SUCCESS: Email to admin@roomhy.com, helloroomhy@gmail.com via SMTP
+[DEBUG] Attempting WhatsApp copy for admin@roomhy.com, helloroomhy@gmail.com...
+[2026-05-27T11:23:20.869Z] WHATSAPP: Delivered to 0 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-27T11:26:28.851Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: harshdeep20020203@gmail.com, Pass: uyh...oei
+[2026-05-27T11:26:33.642Z] SUCCESS: Email to marketing@roomhy.com via SMTP
+[DEBUG] Attempting WhatsApp copy for marketing@roomhy.com...
+[2026-05-27T11:26:33.767Z] WHATSAPP: Delivered to 0 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-27T12:57:01.113Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: harshdeep20020203@gmail.com, Pass: uyh...oei
+[2026-05-27T12:57:06.848Z] SUCCESS: Email to h2248370@gmail.com via SMTP
+[DEBUG] Attempting WhatsApp copy for h2248370@gmail.com...
+[2026-05-27T12:57:07.352Z] WHATSAPP: Delivered to 0 recipients

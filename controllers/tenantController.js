@@ -6,6 +6,7 @@ const Rent = require('../models/Rent');
 const generateTenantId = require('../utils/generateTenantId');
 const crypto = require('crypto');
 const mailer = require('../utils/mailer');
+const { sendTemplateToResolvedUser } = require('../utils/whatsappBot');
 
 /**
  * Assign a tenant to a room
@@ -31,6 +32,20 @@ exports.assignTenant = async (req, res) => {
         const maintenanceChargeAmount = Math.max(0, parseInt(maintenanceCharge, 10) || 0);
         
         let assignedPropertyTitle = String(propertyTitle || '').trim();
+
+        const normalizedOwnerLoginId = String(ownerLoginId || '').toUpperCase();
+        if (normalizedOwnerLoginId) {
+            const ownerProfile = await Owner.findOne({ loginId: normalizedOwnerLoginId })
+                .select('checkinUpiId profile')
+                .lean();
+            const ownerUpiId = String(ownerProfile?.checkinUpiId || ownerProfile?.profile?.upiId || '').trim();
+            if (!ownerUpiId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Owner UPI details are missing. Please complete owner profile payment details before assigning a tenant.'
+                });
+            }
+        }
 
         // Validation
         const requiredFields = {
@@ -321,6 +336,25 @@ exports.assignTenant = async (req, res) => {
                 console.log(`[MAIL] Email sent successfully to ${tenant.email}`);
             }
 
+            // Send WhatsApp to tenant's phone (the number owner entered during room allotment)
+            console.log('[TENANT ALLOTMENT] tenant.phone=', tenant.phone, 'tenantCheckinLink=', tenantCheckinLink);
+            if (tenant.phone) {
+                sendTemplateToResolvedUser({
+                    phone: tenant.phone,
+                    templateName: 'roomhy_kyc_pending',
+                    options: {
+                        namedParams: {
+                            tenant_name: tenant.name || 'Tenant',
+                            kyc_url: tenantCheckinLink
+                        }
+                    }
+                }).then((sent) => {
+                    console.log('[TENANT ALLOTMENT] WhatsApp kyc_pending sent=', sent, 'to phone=', tenant.phone);
+                }).catch((err) => console.warn('[TENANT ALLOTMENT] WhatsApp failed:', err && err.message));
+            } else {
+                console.warn('[TENANT ALLOTMENT] No phone — skipping WhatsApp');
+            }
+
             // Also send a copy to owner email (if available)
             const ownerEmail =
                 (property.owner && property.owner.email) ||
@@ -392,8 +426,15 @@ exports.getTenantsByOwner = async (req, res) => {
     try {
         const { ownerId } = req.params;
 
+        let query = {};
+        if (require('mongoose').Types.ObjectId.isValid(ownerId)) {
+            query = { owner: ownerId };
+        } else {
+            query = { ownerLoginId: String(ownerId).toUpperCase() };
+        }
+
         // Get all properties owned by this owner
-        const properties = await Property.find({ owner: ownerId });
+        const properties = await Property.find(query);
         const propertyIds = properties.map(p => p._id);
 
         // Get tenants assigned to these properties

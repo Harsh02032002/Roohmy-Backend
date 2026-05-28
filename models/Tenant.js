@@ -38,7 +38,6 @@ const TenantSchema = new mongoose.Schema({
     tempPassword: { type: String }, // Stored temporarily; user will set own password
     ownerLoginId: { type: String },
     propertyTitle: { type: String },
-    profileFilled: { type: Boolean, default: false },
 
     // Financial Details for Assignment
     securityDepositTotal: { type: Number, default: 0 },
@@ -71,6 +70,8 @@ const TenantSchema = new mongoose.Schema({
     agreementSigned: { type: Boolean, default: false },
     agreementSignedAt: { type: Date },
     agreementESignName: { type: String },
+    agreementRequestId: { type: String },
+    agreementStatus: { type: String },
 
     // Tenant Digital Check-In (owner flow parity)
     digitalCheckin: {
@@ -85,6 +86,14 @@ const TenantSchema = new mongoose.Schema({
             agreedRent: { type: Number },
             submittedAt: { type: Date }
         },
+        allotment: {
+            securityDepositTotal: { type: Number, default: 0 },
+            securityDepositPaid: { type: Number, default: 0 },
+            securityDepositBalance: { type: Number, default: 0 },
+            electricityCharge: { type: Number, default: 0 },
+            maintenanceCharge: { type: Number, default: 0 },
+            submittedAt: { type: Date }
+        },
         kyc: {
             aadhaarLinkedPhone: { type: String },
             aadhaarNumber: { type: String },
@@ -95,8 +104,10 @@ const TenantSchema = new mongoose.Schema({
         },
         agreement: {
             eSignName: { type: String },
-            acceptedAt: { type: Date }
+            acceptedAt: { type: Date },
+            signatureDataUrl: { type: String }
         },
+        agreementDetails: { type: mongoose.Schema.Types.Mixed, default: {} },
         submittedAt: { type: Date }
     },
     
@@ -110,20 +121,6 @@ const TenantSchema = new mongoose.Schema({
         type: String,
         enum: ['pending', 'submitted', 'verified', 'rejected'],
         default: 'pending'
-    },
-    policeVerification: {
-        status: { type: String, enum: ['pending', 'submitted', 'verified', 'rejected'], default: 'pending' },
-        receiptFile: { type: String },
-        submittedAt: { type: Date }
-    },
-    moveoutRequest: {
-        status: { type: String, enum: ['none', 'pending', 'approved', 'rejected'], default: 'none' },
-        requestedDate: { type: Date },
-        reason: { type: String },
-        submittedAt: { type: Date },
-        refundStatus: { type: String, enum: ['pending', 'cleared', 'deductions_applied'], default: 'pending' },
-        duesAtMoveout: { type: Number, default: 0 },
-        refundAmount: { type: Number, default: 0 }
     },
     
     // Owner who assigned

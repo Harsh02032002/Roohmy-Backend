@@ -50,6 +50,7 @@ const Owner = require('../models/Owner');
 const Notification = require('../models/Notification');
 const Property = require('../models/Property');
 const CheckinRecord = require('../models/CheckinRecord');
+const ApprovedProperty = require('../models/ApprovedProperty');
 
 // List Owners with Filtering (Area, KYC Status)
 exports.getAllOwners = async (req, res) => {
@@ -85,6 +86,8 @@ exports.getAllOwners = async (req, res) => {
         // Attach property counts per owner for frontend display
         const ownerLoginIds = owners.map(o => o.loginId).filter(Boolean);
         const primaryPropertyMap = {};
+        const approvedPropertyMap = {};
+
         if (ownerLoginIds.length > 0) {
             const counts = await Property.aggregate([
                 { $match: { ownerLoginId: { $in: ownerLoginIds } } },
@@ -96,11 +99,24 @@ exports.getAllOwners = async (req, res) => {
 
             const firstProperties = await Property.find({ ownerLoginId: { $in: ownerLoginIds } })
                 .sort({ createdAt: 1 })
-                .select('ownerLoginId title locationCode')
+                .select('ownerLoginId title locationCode roomCount bedCount vacantRooms vacantBeds occupiedRooms occupiedBeds')
                 .lean();
             firstProperties.forEach((property) => {
                 if (property?.ownerLoginId && !primaryPropertyMap[property.ownerLoginId]) {
                     primaryPropertyMap[property.ownerLoginId] = property;
+                }
+            });
+
+            const approvedProperties = await ApprovedProperty.find({
+                'generatedCredentials.loginId': { $in: ownerLoginIds }
+            })
+                .sort({ approvedAt: -1 })
+                .select('visitId isLiveOnWebsite status generatedCredentials propertyInfo')
+                .lean();
+            approvedProperties.forEach((item) => {
+                const loginId = item?.generatedCredentials?.loginId;
+                if (loginId && !approvedPropertyMap[loginId]) {
+                    approvedPropertyMap[loginId] = item;
                 }
             });
         } else {
@@ -149,7 +165,19 @@ exports.getAllOwners = async (req, res) => {
             kycStatus: o.kyc?.status || 'pending',
             documentImage: o.kyc?.documentImage || '',
             profileFilled: !!o.profileFilled,
-            password: o.credentials?.password || o.checkinPassword || ''
+            password: o.credentials?.password || o.checkinPassword || '',
+            bankLockedByVisit: !!o.bankLockedByVisit,
+            roomCount: Number(o.roomCount ?? primaryPropertyMap[o.loginId]?.roomCount ?? 0),
+            bedCount: Number(o.bedCount ?? primaryPropertyMap[o.loginId]?.bedCount ?? 0),
+            vacantRooms: Number(o.vacantRooms ?? primaryPropertyMap[o.loginId]?.vacantRooms ?? 0),
+            vacantBeds: Number(o.vacantBeds ?? primaryPropertyMap[o.loginId]?.vacantBeds ?? 0),
+            occupiedRooms: Number(o.occupiedRooms ?? primaryPropertyMap[o.loginId]?.occupiedRooms ?? 0),
+            occupiedBeds: Number(o.occupiedBeds ?? primaryPropertyMap[o.loginId]?.occupiedBeds ?? 0),
+            roomInventory: Array.isArray(o.roomInventory) ? o.roomInventory : [],
+            approvedVisitId: approvedPropertyMap[o.loginId]?.visitId || '',
+            isLiveOnWebsite: Boolean(approvedPropertyMap[o.loginId]?.isLiveOnWebsite),
+            websiteStatus: approvedPropertyMap[o.loginId]?.status || '',
+            city: o.profile?.city || o.city || primaryPropertyMap[o.loginId]?.city || ''
         }));
 
         res.json({ success: true, owners: enrichedOwners });
@@ -207,11 +235,34 @@ exports.getOwnerById = async (req, res) => {
         const normalizedLoginId = String(req.params.loginId || '').trim().toUpperCase();
         const owner = await Owner.findOne({ loginId: normalizedLoginId }).lean();
         if (!owner) return res.status(404).json({ message: 'Owner not found' });
+        const approvedProperty = await ApprovedProperty.findOne({ 'generatedCredentials.loginId': normalizedLoginId })
+            .sort({ approvedAt: -1 })
+            .select('visitId isLiveOnWebsite status')
+            .lean();
+
+        // Fallback: read bank fields from VisitData if Owner checkin fields are missing
+        const VisitData = require('../models/VisitData');
+        const visitForBank = await VisitData.findOne({ 'generatedCredentials.loginId': normalizedLoginId })
+            .select('bankAccountHolderName bankAccountNumber bankIfscCode bankName bankBranchName bankUpiId ownerPhone contactPhone')
+            .sort({ updatedAt: -1 })
+            .lean();
+
         const checkin = await CheckinRecord.findOne({ role: 'owner', loginId: normalizedLoginId }).lean();
         const primaryProperty = await Property.findOne({ ownerLoginId: normalizedLoginId })
             .sort({ createdAt: 1 })
             .select('title locationCode')
             .lean();
+
+        const checkinBankName = owner.checkinBankName || checkin?.ownerProfile?.payment?.bankName || owner.bankName || visitForBank?.bankName || '';
+        const checkinBranchName = owner.checkinBranchName || checkin?.ownerProfile?.payment?.branchName || owner.branchName || visitForBank?.bankBranchName || '';
+        const checkinBankAccountNumber = owner.checkinBankAccountNumber || checkin?.ownerProfile?.payment?.bankAccountNumber || visitForBank?.bankAccountNumber || '';
+        const checkinIfscCode = owner.checkinIfscCode || checkin?.ownerProfile?.payment?.ifscCode || visitForBank?.bankIfscCode || '';
+        const checkinAccountHolderName = owner.checkinAccountHolderName || checkin?.ownerProfile?.payment?.accountHolderName || visitForBank?.bankAccountHolderName || '';
+        const checkinUpiId = owner.checkinUpiId || checkin?.ownerProfile?.payment?.upiId || visitForBank?.bankUpiId || '';
+        const bankLockedByVisit = !!owner.bankLockedByVisit || !!(visitForBank?.bankName || visitForBank?.bankAccountNumber);
+        const visitPhone = visitForBank?.ownerPhone || visitForBank?.contactPhone || '';
+        const phoneLockedByVisit = !!visitPhone;
+
         res.json({
             ...owner,
             propertyTitle: primaryProperty?.title || '',
@@ -222,10 +273,10 @@ exports.getOwnerById = async (req, res) => {
             phone: owner.profile?.phone || owner.phone || owner.checkinPhone || (checkin?.ownerProfile?.phone || ''),
             address: owner.profile?.address || owner.address || owner.checkinAddress || (checkin?.ownerProfile?.address || ''),
             locationCode: owner.profile?.locationCode || owner.locationCode || owner.checkinArea || (checkin?.ownerProfile?.area || ''),
-            bankName: owner.profile?.bankName || owner.checkinBankName || '',
-            accountNumber: owner.profile?.accountNumber || owner.accountNumber || owner.checkinBankAccountNumber || (checkin?.ownerProfile?.payment?.bankAccountNumber || ''),
-            ifscCode: owner.profile?.ifscCode || owner.ifscCode || owner.checkinIfscCode || (checkin?.ownerProfile?.payment?.ifscCode || ''),
-            branchName: owner.profile?.branchName || owner.branchName || owner.checkinBranchName || '',
+            bankName: owner.profile?.bankName || checkinBankName || '',
+            accountNumber: owner.profile?.accountNumber || owner.accountNumber || checkinBankAccountNumber || '',
+            ifscCode: owner.profile?.ifscCode || owner.ifscCode || checkinIfscCode || '',
+            branchName: owner.profile?.branchName || owner.branchName || checkinBranchName || '',
             aadharNumber: owner.kyc?.aadharNumber || owner.kyc?.aadhaarNumber || owner.checkinAadhaarNumber || '',
             kycStatus: owner.kyc?.status || 'pending',
             documentImage: owner.kyc?.documentImage || '',
@@ -236,16 +287,42 @@ exports.getOwnerById = async (req, res) => {
             checkinPhone: owner.checkinPhone || checkin?.ownerProfile?.phone || owner.phone || '',
             checkinAddress: owner.checkinAddress || checkin?.ownerProfile?.address || owner.address || '',
             checkinArea: owner.checkinArea || checkin?.ownerProfile?.area || owner.locationCode || '',
-            checkinAccountHolderName: owner.checkinAccountHolderName || checkin?.ownerProfile?.payment?.accountHolderName || '',
-            checkinBankAccountNumber: owner.checkinBankAccountNumber || checkin?.ownerProfile?.payment?.bankAccountNumber || '',
-            checkinIfscCode: owner.checkinIfscCode || checkin?.ownerProfile?.payment?.ifscCode || '',
-            checkinBankName: owner.checkinBankName || checkin?.ownerProfile?.payment?.bankName || owner.bankName || '',
-            checkinBranchName: owner.checkinBranchName || checkin?.ownerProfile?.payment?.branchName || owner.branchName || '',
-            checkinUpiId: owner.checkinUpiId || checkin?.ownerProfile?.payment?.upiId || '',
-            checkinAadhaarLinkedPhone: owner.checkinAadhaarLinkedPhone || checkin?.ownerKyc?.aadhaarLinkedPhone || owner.kyc?.aadhaarLinkedPhone || '',
-            checkinAadhaarNumber: owner.checkinAadhaarNumber || checkin?.ownerKyc?.aadhaarNumber || owner.kyc?.aadharNumber || owner.kyc?.aadhaarNumber || '',
+            checkinAccountHolderName,
+            checkinBankAccountNumber,
+            checkinIfscCode,
+            checkinBankName,
+            checkinBranchName,
+            checkinUpiId,
+            bankLockedByVisit,
+            phoneLockedByVisit,
+            checkinAadhaarLinkedPhone: owner.checkinAadhaarLinkedPhone || checkin?.ownerKyc?.aadhaarLinkedPhone || owner.kyc?.aadhaarLinkedPhone || visitPhone || '',
+            checkinOwnerPhoto: owner.checkinOwnerPhoto || '',
+            checkinOwnerPhotoName: owner.checkinOwnerPhotoName || '',
+            checkinOwnerPhotoType: owner.checkinOwnerPhotoType || '',
+            checkinBankProof: owner.checkinBankProof || '',
+            checkinBankProofName: owner.checkinBankProofName || '',
+            checkinBankProofType: owner.checkinBankProofType || '',
+            roomCount: Number(owner.roomCount || primaryProperty?.roomCount || 0),
+            bedCount: Number(owner.bedCount || primaryProperty?.bedCount || 0),
+            vacantRooms: Number(owner.vacantRooms || primaryProperty?.vacantRooms || 0),
+            vacantBeds: Number(owner.vacantBeds || primaryProperty?.vacantBeds || 0),
+            occupiedRooms: Number(owner.occupiedRooms || primaryProperty?.occupiedRooms || 0),
+            occupiedBeds: Number(owner.occupiedBeds || primaryProperty?.occupiedBeds || 0),
+            roomInventory: Array.isArray(owner.roomInventory) ? owner.roomInventory : [],
+            approvedVisitId: approvedProperty?.visitId || '',
+            isLiveOnWebsite: Boolean(approvedProperty?.isLiveOnWebsite),
+            websiteStatus: approvedProperty?.status || '',
+            city: owner.profile?.city || owner.city || primaryProperty?.city || '',
             checkinOtpVerified: !!checkin?.ownerKyc?.otpVerified,
-            checkinSubmittedAt: checkin?.ownerSubmittedAt || null
+            checkinSubmittedAt: checkin?.ownerSubmittedAt || null,
+            settings: {
+                checkoutTime: owner.settings?.checkoutTime || "10:00 AM",
+                checkinTime: owner.settings?.checkinTime || "11:00 AM",
+                fineGracePeriod: owner.settings?.fineGracePeriod !== undefined ? owner.settings.fineGracePeriod : 5,
+                fineAmount: owner.settings?.fineAmount !== undefined ? owner.settings.fineAmount : 100,
+                curfewTime: owner.settings?.curfewTime || "11:00 PM",
+                electricityUnitRate: owner.settings?.electricityUnitRate !== undefined ? owner.settings.electricityUnitRate : 12,
+            }
         });
     } catch (err) {
         res.status(500).json({ message: err.message });

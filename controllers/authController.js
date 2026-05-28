@@ -6,6 +6,7 @@ const Owner = require('../models/Owner');
 const KYCVerification = require('../models/KYCVerification');
 const jwt = require('jsonwebtoken');
 const mailer = require('../utils/mailer');
+const { sendTemplateToResolvedUser } = require('../utils/whatsappBot');
 const OWNER_LOGIN_ID_REGEX = /^ROOMHY\d{4}$/i;
 
 // OTP storage (in production, use Redis or database)
@@ -154,10 +155,21 @@ exports.forgotPasswordRequestOTP = async (req, res) => {
         // Try to send email
         await sendEmail(email, 'RoomHy - Password Reset OTP', emailHtml);
 
+        try {
+            await sendTemplateToResolvedUser({
+                email,
+                templateName: 'roomhy_otp_verification',
+                variables: [otp],
+                options: { urlButtons: [[otp]] }
+            });
+        } catch (whatsAppErr) {
+            console.warn('[ForgotPassword] WhatsApp OTP send failed:', whatsAppErr.message);
+        }
+
         // Always return success (email may fail in development)
         res.json({ 
             success: true, 
-            message: 'OTP sent to your email. Please check your inbox and spam folder.',
+            message: 'OTP sent to your email and WhatsApp. Please check your inbox and spam folder.',
             // In development mode, return OTP for testing
             ...(process.env.NODE_ENV === 'development' && { demo_otp: otp })
         });
@@ -340,9 +352,24 @@ exports.ownerForgotPasswordRequestOTP = async (req, res) => {
 
         await sendEmail(email, 'RoomHy Owner Password Reset OTP', emailHtml);
 
+        try {
+            const ownerPhone = owner.phone || owner.profile?.phone || owner.checkinPhone || '';
+            console.log('[OwnerOTP] Resolved phone for WhatsApp:', ownerPhone || 'NOT FOUND');
+            await sendTemplateToResolvedUser({
+                phone: ownerPhone,
+                email,
+                templateName: 'roomhy_otp_verification',
+                variables: [otp],
+                options: { urlButtons: [[otp]] }
+            });
+            console.log('[OwnerOTP] WhatsApp OTP sent successfully');
+        } catch (whatsAppErr) {
+            console.warn('[OwnerOTP] WhatsApp send failed:', whatsAppErr.message);
+        }
+
         res.json({
             success: true,
-            message: 'OTP sent to your registered email',
+            message: 'OTP sent to your registered email and WhatsApp',
             email,
             ...(process.env.NODE_ENV === 'development' && { demo_otp: otp })
         });

@@ -6,6 +6,14 @@ const complaintSchema = new mongoose.Schema({
         required: true,
         index: true
     },
+    tenantLoginId: {
+        type: String,
+        default: ''
+    },
+    tenantEmail: {
+        type: String,
+        default: ''
+    },
     type: {
         type: String,
         enum: ['Tenant', 'Owner'],
@@ -28,6 +36,11 @@ const complaintSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    propertyId: {
+        type: String,
+        default: '',
+        index: true
+    },
     roomNo: {
         type: String,
         required: true
@@ -39,6 +52,10 @@ const complaintSchema = new mongoose.Schema({
     category: {
         type: String,
         required: true
+    },
+    issueType: {
+        type: String,
+        default: ''
     },
     description: {
         type: String,
@@ -63,6 +80,18 @@ const complaintSchema = new mongoose.Schema({
     imageStr: {
         type: String
     },
+    ownerResponse: {
+        type: String,
+        default: ''
+    },
+    ownerResponseBy: {
+        type: String,
+        default: ''
+    },
+    ownerResponseByLoginId: {
+        type: String,
+        default: ''
+    },
     assignedTo: {
         type: String,
         default: null
@@ -83,6 +112,10 @@ const complaintSchema = new mongoose.Schema({
         default: Date.now
     },
     resolvedAt: {
+        type: Date,
+        default: null
+    },
+    escalatedAt: {
         type: Date,
         default: null
     }

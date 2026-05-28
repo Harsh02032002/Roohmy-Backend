@@ -8,6 +8,8 @@ const { Server } = require('socket.io');
 const path = require('path');
 const dns = require('dns');
 const { startCronJobs } = require('./services/cronJobs');
+const { startEscalationJob } = require('./controllers/complaintController');
+let escalationJobStarted = false;
 const initChatSocket = require('./socket/chatSocket');
 const { globalApiLimiter } = require('./middleware/security');
 const { apiCache, getCacheStats, clearCache } = require('./middleware/apiCache');
@@ -195,7 +197,13 @@ app.use(async (req, res, next) => {
     next();
 });
 
-mongoose.connection.on('connected', () => console.log('✅ Mongoose connected'));
+mongoose.connection.on('connected', () => {
+    console.log('✅ Mongoose connected');
+    if (!escalationJobStarted) {
+        escalationJobStarted = true;
+        startEscalationJob();
+    }
+});
 mongoose.connection.on('error', (err) => console.error('❌ Mongoose error', err && err.message));
 mongoose.connection.on('disconnected', () => console.warn('⚠️ Mongoose disconnected'));
 mongoose.connection.on('reconnected', () => console.log('✅ Mongoose reconnected'));
@@ -236,8 +244,8 @@ try {
     console.log('  ✓ kycRoutes');
     app.use('/api/signups', require('./routes/kycRoutes'));
     console.log('  ✓ kycRoutes (as /api/signups)');
-    console.log('  ✓ citiesRoutes (moved to /api/locations/cities)');
-    // app.use('/api/cities', require('./routes/citiesRoutes'));
+    app.use('/api/cities', require('./routes/citiesRoutes'));
+    console.log('  ✓ citiesRoutes');
     app.use('/api/property-types', require('./routes/propertyTypeRoutes'));
     console.log('  ✓ propertyTypeRoutes');
     app.use('/api/locations', require('./routes/locationRoutes'));
@@ -266,6 +274,12 @@ try {
     console.log('  ✓ emailRoutes');
     app.use('/api/checkin', require('./routes/checkinRoutes'));
     console.log('  ✓ checkinRoutes');
+    app.use('/api/whatsapp', require('./routes/whatsappRoutes'));
+    console.log('  ✓ whatsappRoutes');
+    app.use('/webhook', require('./routes/whatsappWebhookRoutes'));
+    console.log('  ✓ whatsappWebhookRoutes');
+    app.use('/zoho', require('./routes/zohoRoutes'));
+    console.log('  ✓ zohoRoutes');
     app.use('/api/colleges', require('./routes/collegeRoutes'));
     console.log('  ✓ collegeRoutes');
     app.use('/api/property-colleges', require('./routes/propertyColleges'));

@@ -14,6 +14,10 @@ const VisitDataSchema = new mongoose.Schema({
     visitorPhone: String,
     staffName: String,
     staffId: String,
+    submittedBy: String,
+    submittedById: String,
+    submittedByLoginId: String,
+    ownerLoginId: String,
     
     // Property Information
     propertyName: String,
@@ -39,6 +43,12 @@ const VisitDataSchema = new mongoose.Schema({
     ownerPhone: String,
     ownerCity: String,
     contactPhone: String,
+    roomCount: { type: Number, default: 0 },
+    bedCount: { type: Number, default: 0 },
+    vacantRooms: { type: Number, default: 0 },
+    vacantBeds: { type: Number, default: 0 },
+    occupiedRooms: { type: Number, default: 0 },
+    occupiedBeds: { type: Number, default: 0 },
     
     // Photos
     photos: [String],
@@ -83,10 +93,49 @@ const VisitDataSchema = new mongoose.Schema({
     approvedAt: Date,
     approvalNotes: String,
     approvedBy: String,
+    holdReason: String,
+    holdAction: {
+        type: String,
+        enum: ['edit', 'none', ''],
+        default: ''
+    },
+    holdAt: Date,
+    rejectReason: String,
+    rejectAction: {
+        type: String,
+        enum: ['reupload', 'cancel', ''],
+        default: ''
+    },
+    rejectedAt: Date,
     generatedCredentials: {
         loginId: String,
         tempPassword: String
     },
+    
+    // KYC link tracking
+    kycStatus: {
+        type: String,
+        enum: ['not_sent', 'sent', 'completed'],
+        default: 'not_sent',
+        index: true
+    },
+    kycToken: { type: String },
+    kycTokenExpiry: { type: Date },
+    kycSentAt: { type: Date },
+    
+    // KYC data filled by owner
+    kycAadhaarNumber: { type: String },
+    kycPanNumber: { type: String },
+    kycPhone: { type: String },
+    kycCompletedAt: { type: Date },
+
+    // Bank Details
+    bankAccountHolderName: { type: String },
+    bankAccountNumber:     { type: String },
+    bankIfscCode:          { type: String },
+    bankName:              { type: String },
+    bankBranchName:        { type: String },
+    bankUpiId:             { type: String },
     isLiveOnWebsite: {
         type: Boolean,
         default: false
@@ -112,5 +161,13 @@ VisitDataSchema.pre('save', function(next) {
     this.updatedAt = new Date();
     next();
 });
+
+VisitDataSchema.index({ staffId: 1, submittedAt: -1 });
+VisitDataSchema.index({ staffName: 1, submittedAt: -1 });
+VisitDataSchema.index({ submittedBy: 1, submittedAt: -1 });
+VisitDataSchema.index({ submittedById: 1, submittedAt: -1 });
+VisitDataSchema.index({ submittedByLoginId: 1, submittedAt: -1 });
+VisitDataSchema.index({ ownerLoginId: 1, submittedAt: -1 });
+VisitDataSchema.index({ submittedAt: -1 });
 
 module.exports = mongoose.model('VisitData', VisitDataSchema);

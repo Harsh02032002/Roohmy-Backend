@@ -195,9 +195,16 @@ exports.getConversation = async (req, res) => {
 exports.markAsRead = async (req, res) => {
   try {
     const { room_id } = req.params;
+    const { sender } = req.query;
+    
+    const query = { room_id, is_read: false };
+    if (sender) {
+      const senderVariants = [...new Set([sender, sender.toLowerCase(), sender.toUpperCase()])];
+      query.sender_login_id = { $in: senderVariants };
+    }
     
     await ChatMessage.updateMany(
-      { room_id, is_read: false },
+      query,
       { is_read: true }
     );
 
