@@ -14,6 +14,7 @@ const CheckinRecord = require('../models/CheckinRecord');
 const { protect, authorize } = require('../middleware/authMiddleware');
 const ownerController = require('../controllers/ownercontroller');
 const { auditTrail } = require('../middleware/auditTrail');
+const mailer = require('../utils/mailer');
 
 // 1. Create new owner (Preserved from original - used by enquiry approval/import)
 router.post('/', auditTrail('owners'), async (req, res) => {
@@ -22,6 +23,28 @@ router.post('/', auditTrail('owners'), async (req, res) => {
         const owner = new Owner(req.body);
         await owner.save();
         console.log('✅ Owner created:', owner.loginId);
+
+        // Send KYC link to owner's email automatically
+        if (owner.email) {
+            try {
+                const DIGITAL_CHECKIN_URL = process.env.DIGITAL_CHECKIN_URL || process.env.FRONTEND_URL || 'https://admin.roomhy.com';
+                const password = owner.credentials?.password || owner.checkinPassword || (req.body.credentials && req.body.credentials.password) || '';
+                const area = owner.locationCode || owner.area || '';
+                
+                const kycLink = `${DIGITAL_CHECKIN_URL}/digital-checkin/ownerprofile?loginId=${encodeURIComponent(owner.loginId)}&email=${encodeURIComponent(owner.email)}&area=${encodeURIComponent(area)}&password=${encodeURIComponent(password)}`;
+                
+                await mailer.sendKycLinkEmail(owner.email, owner.name || 'Owner', 'Roomhy Asset Portal', kycLink);
+                
+                // Update KYC status to 'sent'
+                owner.kyc = owner.kyc || {};
+                owner.kyc.status = 'sent';
+                await owner.save();
+                console.log(`✉️ Direct KYC link sent to ${owner.email} for newly created Owner ${owner.loginId}`);
+            } catch (mailErr) {
+                console.warn('❌ Failed to send direct KYC email for new Owner:', mailErr.message);
+            }
+        }
+
         res.status(201).json(owner);
     } catch (err) {
         console.error('❌ Owner POST error:', err.message);
