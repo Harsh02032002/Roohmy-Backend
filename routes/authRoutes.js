@@ -8,6 +8,16 @@ router.use(authLimiter);
 
 router.post('/login', authController.login);
 
+router.get('/debug-emp', async (req, res) => {
+    try {
+        const Employee = require('../models/Employee');
+        const emp = await Employee.findOne({ loginId: 'RY7752' });
+        res.json(emp);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 router.post('/register', authController.register);
 router.get('/me', protect, authController.me);
 

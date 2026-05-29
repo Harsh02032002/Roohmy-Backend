@@ -10,7 +10,23 @@ exports.protect = async (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-        const user = await User.findById(decoded.id).select('-password');
+        let user = await User.findById(decoded.id).select('-password');
+        
+        if (!user) {
+            const AreaManager = require('../models/AreaManager');
+            user = await AreaManager.findById(decoded.id).select('-password');
+            if (user) user.role = 'areamanager';
+        }
+
+        if (!user) {
+            const Employee = require('../models/Employee');
+            user = await Employee.findById(decoded.id).select('-password');
+            if (user) {
+                user.team = user.role;
+                user.role = user.role && user.role.toLowerCase() === 'manager' ? 'manager' : 'employee';
+            }
+        }
+
         if (!user) return res.status(401).json({ message: 'Not authorized, user not found' });
         req.user = user;
         next();

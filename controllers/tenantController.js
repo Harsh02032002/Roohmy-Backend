@@ -3,6 +3,7 @@ const User = require('../models/user');
 const Property = require('../models/Property');
 const Owner = require('../models/Owner');
 const Rent = require('../models/Rent');
+const Room = require('../models/Room');
 const generateTenantId = require('../utils/generateTenantId');
 const crypto = require('crypto');
 const mailer = require('../utils/mailer');
@@ -125,6 +126,29 @@ exports.assignTenant = async (req, res) => {
         const effectiveLocationCode = property.locationCode || String(locationCode || '').toUpperCase() || 'GEN';
         assignedPropertyTitle = String(assignedPropertyTitle || property.title || '').trim();
 
+        // Find Room record if exists
+        let roomObj = null;
+        if (property && roomNo) {
+            roomObj = await Room.findOne({
+                property: property._id,
+                title: { $regex: `^${String(roomNo).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' }
+            });
+
+            if (roomObj && bedNo) {
+                const bIndex = Number(bedNo) - 1;
+                // Ensure array exists
+                if (!roomObj.bedAssignments) {
+                    roomObj.bedAssignments = [];
+                }
+                while (roomObj.bedAssignments.length <= bIndex) {
+                    roomObj.bedAssignments.push({});
+                }
+                if (roomObj.bedAssignments[bIndex] && roomObj.bedAssignments[bIndex].tenantId) {
+                    return res.status(400).json({ success: false, message: `Bed ${bedNo} in Room ${roomNo} is already occupied by another tenant.` });
+                }
+            }
+        }
+
         // Generate unique tenant login ID
         const loginId = await generateTenantId();
 
@@ -152,6 +176,7 @@ exports.assignTenant = async (req, res) => {
             dob,
             gender,
             property: property._id,
+            room: roomObj ? roomObj._id : undefined,
             roomNo,
             building,
             floor,
@@ -192,6 +217,19 @@ exports.assignTenant = async (req, res) => {
 
         // Populate for response (include locationCode and owner info)
         await tenant.populate('property', 'title roomType locationCode owner ownerLoginId');
+
+        // Update Room's bed assignment
+        if (roomObj && bedNo) {
+            const bIndex = Number(bedNo) - 1;
+            roomObj.bedAssignments[bIndex] = {
+                tenantId: tenant._id,
+                tenantName: tenant.name,
+                tenantLoginId: tenant.loginId,
+                assignedAt: new Date()
+            };
+            roomObj.markModified('bedAssignments');
+            await roomObj.save();
+        }
 
         // Create Rent record for this tenant
         const rentAmount = parseInt(agreedRent);

@@ -11,6 +11,13 @@ const ElectricityReadingSchema = new mongoose.Schema({
 	createdAt: { type: Date, default: Date.now }
 });
 
+const BedAssignmentSchema = new mongoose.Schema({
+	tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant' },
+	tenantName: { type: String },
+	tenantLoginId: { type: String },
+	assignedAt: { type: Date, default: Date.now }
+}, { _id: false });
+
 const RoomSchema = new mongoose.Schema({
 	property: { type: mongoose.Schema.Types.ObjectId, ref: 'Property', required: true },
 	title: { type: String, required: true },
@@ -25,6 +32,7 @@ const RoomSchema = new mongoose.Schema({
 	facilities: { type: [String], default: [] },
 	roomTypeFeatures: { type: [String], default: [] },
 	media: { type: [Object], default: [] },
+	bedAssignments: [BedAssignmentSchema],
 	electricity: {
 		unitCost: { type: Number, default: 0 },
 		readings: [ElectricityReadingSchema]

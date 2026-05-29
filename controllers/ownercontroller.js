@@ -229,6 +229,87 @@ exports.updateOwnerKyc = async (req, res) => {
     }
 };
 
+// Request Owner (Employee Action)
+exports.requestOwner = async (req, res) => {
+    try {
+        console.log('📝 Owner Request POST:', req.body);
+        const { loginId, name, email, phone, locationCode } = req.body;
+        
+        // Ensure loginId is unique
+        const existing = await Owner.findOne({ loginId }).lean();
+        if (existing) {
+            return res.status(409).json({ error: 'Owner ID already exists', code: 'DUPLICATE' });
+        }
+
+        const owner = new Owner({
+            loginId,
+            name,
+            email,
+            phone,
+            locationCode,
+            isActive: false,
+            kyc: {
+                status: 'requested'
+            }
+        });
+        
+        await owner.save();
+        console.log('✅ Owner request created:', owner.loginId);
+
+        res.status(201).json({ success: true, owner, message: 'Owner request submitted successfully' });
+    } catch (err) {
+        console.error('❌ Owner Request error:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+};
+
+// Approve Owner Request (Super Admin Action)
+exports.approveOwner = async (req, res) => {
+    try {
+        const { loginId } = req.params;
+        const { password } = req.body;
+
+        if (!password) {
+            return res.status(400).json({ message: 'Password is required for approval' });
+        }
+
+        const owner = await Owner.findOne({ loginId });
+        if (!owner) return res.status(404).json({ message: 'Owner not found' });
+
+        if (owner.kyc?.status !== 'requested') {
+            return res.status(400).json({ message: 'Owner is not in requested status' });
+        }
+
+        // Set credentials
+        owner.credentials = { password, firstTime: true };
+        owner.checkinPassword = password;
+        owner.kyc = owner.kyc || {};
+        owner.kyc.status = 'sent'; // Indicate link sent
+        await owner.save();
+
+        // Send email
+        if (owner.email) {
+            try {
+                const mailer = require('../utils/mailer');
+                const DIGITAL_CHECKIN_URL = process.env.DIGITAL_CHECKIN_URL || process.env.FRONTEND_URL || 'https://admin.roomhy.com';
+                const area = owner.locationCode || owner.area || '';
+                
+                const kycLink = `${DIGITAL_CHECKIN_URL}/digital-checkin/ownerprofile?loginId=${encodeURIComponent(owner.loginId)}&email=${encodeURIComponent(owner.email)}&area=${encodeURIComponent(area)}&password=${encodeURIComponent(password)}`;
+                
+                await mailer.sendKycLinkEmail(owner.email, owner.name || 'Owner', 'Roomhy Asset Portal', kycLink);
+                console.log(`✉️ Direct KYC link sent to ${owner.email} for newly approved Owner ${owner.loginId}`);
+            } catch (mailErr) {
+                console.warn('❌ Failed to send direct KYC email for approved Owner:', mailErr.message);
+            }
+        }
+
+        res.json({ success: true, message: 'Owner request approved and link sent.', owner });
+    } catch (err) {
+        console.error('❌ Approve Owner error:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+};
+
 // Get Single Owner
 exports.getOwnerById = async (req, res) => {
     try {

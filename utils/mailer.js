@@ -388,8 +388,13 @@ async function sendMail(to, subject, text, html) {
     return emailSent || whatsappSent;
 }
 
-function getLoginUrlForRole(role) {
-    const frontendUrl = (process.env.FRONTEND_URL || process.env.WEB_APP_URL || 'https://admin.roomhy.com').replace(/\/$/, '');
+function getLoginUrlForRole(role, originUrl = '') {
+    let frontendUrl = (process.env.FRONTEND_URL || process.env.WEB_APP_URL || 'https://admin.roomhy.com').replace(/\/$/, '');
+    
+    if (originUrl) {
+        frontendUrl = originUrl.replace(/\/$/, '');
+    }
+
     const r = String(role || '').toLowerCase();
     if (r.includes('owner')) {
         return `${frontendUrl}/propertyowner/ownerlogin`;
@@ -397,13 +402,13 @@ function getLoginUrlForRole(role) {
     if (r.includes('tenant')) {
         return `${frontendUrl}/tenant/tenantlogin`;
     }
-    if (r.includes('manager') || r.includes('employee') || r.includes('staff')) {
-        return `${frontendUrl}/superadmin/index`;
+    if (r.includes('manager') || r.includes('employee') || r.includes('staff') || r.includes('warden') || r.includes('electrician') || r.includes('plumber') || r.includes('security') || r.includes('housekeeping')) {
+        return `${frontendUrl}/employee/index`;
     }
     return `${frontendUrl}/superadmin/index`;
 }
 
-function credentialsHtml(loginId, password, role = 'Account') {
+function credentialsHtml(loginId, password, role = 'Account', originUrl = '') {
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -458,7 +463,7 @@ function credentialsHtml(loginId, password, role = 'Account') {
                 </div>
                 
                 <div style="text-align: center;">
-                    <a href="${getLoginUrlForRole(role)}" class="btn">Login to RoomHy</a>
+                    <a href="${getLoginUrlForRole(role, originUrl)}" class="btn">Login to RoomHy</a>
                 </div>
             </div>
             <div class="footer">
@@ -471,11 +476,11 @@ function credentialsHtml(loginId, password, role = 'Account') {
 </html>`;
 }
 
-async function sendCredentials(toEmail, loginId, password, role = 'Account') {
+async function sendCredentials(toEmail, loginId, password, role = 'Account', originUrl = '') {
     if (!toEmail) return;
-    const loginUrl = getLoginUrlForRole(role);
+    const loginUrl = getLoginUrlForRole(role, originUrl);
     const subject = `${role} credentials for RoomHy`;
-    const html = credentialsHtml(loginId, password, role);
+    const html = credentialsHtml(loginId, password, role, originUrl);
     const text = `Your ${role} credentials\nLogin ID: ${loginId}\nPassword: ${password}\n\nLogin here: ${loginUrl}`;
     return sendMail(toEmail, subject, text, html);
 }

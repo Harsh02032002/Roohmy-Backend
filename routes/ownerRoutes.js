@@ -70,6 +70,12 @@ router.post('/', auditTrail('owners'), async (req, res) => {
 // Supports: ?locationCode=KO (prefix match), ?kycStatus=verified, ?search=...
 router.get('/', ownerController.getAllOwners);
 
+// 2b. Request new owner (Employee Action)
+router.post('/request', auditTrail('owners'), ownerController.requestOwner);
+
+// 2c. Approve owner request (Super Admin Action)
+router.post('/:loginId/approve', protect, authorize('superadmin', 'areamanager'), auditTrail('owners'), ownerController.approveOwner);
+
 // 3. Get owner by loginId (Preserved)
 router.get('/:loginId', ownerController.getOwnerById);
 

@@ -323,3 +323,73 @@
 [2026-05-28T11:27:08.017Z] SUCCESS: Email to harshdeep20020203@gmail.com via SMTP
 [DEBUG] Attempting WhatsApp copy for harshdeep20020203@gmail.com...
 [2026-05-28T11:27:08.405Z] WHATSAPP: Delivered to 0 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-28T18:54:46.105Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: helloroomhy@gmail.com, Pass: gon...omu
+[2026-05-28T18:54:49.688Z] FAILED: Email to V5 Road, Sector 37A, Sector 37, Ward 8, Buterla, Chandigarh, 160036, India via SMTP. Error: No recipients defined
+[DEBUG] Attempting WhatsApp copy for V5 Road, Sector 37A, Sector 37, Ward 8, Buterla, Chandigarh, 160036, India...
+[2026-05-28T18:54:50.687Z] WHATSAPP: Delivered to 0 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-28T19:04:56.676Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: helloroomhy@gmail.com, Pass: gon...omu
+[2026-05-28T19:05:00.263Z] FAILED: Email to v5 road, sector 37a, sector 37, ward 8, buterla, chandigarh, 160036, india via SMTP. Error: No recipients defined
+[DEBUG] Attempting WhatsApp copy for v5 road, sector 37a, sector 37, ward 8, buterla, chandigarh, 160036, india...
+[2026-05-28T19:05:01.589Z] WHATSAPP: Delivered to 0 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-28T19:37:16.563Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: helloroomhy@gmail.com, Pass: gon...omu
+[2026-05-28T19:37:24.561Z] SUCCESS: Email to h49499767@gmail.com via SMTP
+[DEBUG] Attempting WhatsApp copy for h49499767@gmail.com...
+[2026-05-28T19:37:24.656Z] WHATSAPP: Delivered to 0 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-28T19:42:32.907Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: helloroomhy@gmail.com, Pass: gon...omu
+[2026-05-28T19:42:42.768Z] SUCCESS: Email to h49499767@gmail.com via SMTP
+[DEBUG] Attempting WhatsApp copy for h49499767@gmail.com...
+[2026-05-28T19:42:42.850Z] WHATSAPP: Delivered to 0 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-28T19:52:34.583Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: helloroomhy@gmail.com, Pass: gon...omu
+[2026-05-28T19:52:39.227Z] SUCCESS: Email to h49499767@gmail.com via SMTP
+[DEBUG] Attempting WhatsApp copy for h49499767@gmail.com...
+[2026-05-28T19:52:39.303Z] WHATSAPP: Delivered to 0 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-28T19:57:16.411Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: helloroomhy@gmail.com, Pass: gon...omu
+[2026-05-28T19:57:22.054Z] SUCCESS: Email to h49499767@gmail.com via SMTP
+[DEBUG] Attempting WhatsApp copy for h49499767@gmail.com...
+[2026-05-28T19:57:22.126Z] WHATSAPP: Delivered to 0 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-28T20:15:21.474Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: helloroomhy@gmail.com, Pass: gon...omu
+[2026-05-28T20:15:26.480Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[DEBUG] Attempting WhatsApp copy for pratapchoubey3@gmail.com...
+[2026-05-28T20:15:27.953Z] WHATSAPP: Delivered to 1 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-28T20:34:22.173Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: helloroomhy@gmail.com, Pass: gon...omu
+[2026-05-28T20:34:26.961Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[DEBUG] Attempting WhatsApp copy for pratapchoubey3@gmail.com...
+[2026-05-28T20:34:28.179Z] WHATSAPP: Delivered to 1 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-28T20:39:48.708Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: helloroomhy@gmail.com, Pass: gon...omu
+[2026-05-28T20:39:53.391Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[DEBUG] Attempting WhatsApp copy for pratapchoubey3@gmail.com...
+[2026-05-28T20:39:54.707Z] WHATSAPP: Delivered to 1 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-28T20:40:19.870Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: helloroomhy@gmail.com, Pass: gon...omu
+[2026-05-28T20:40:24.403Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[DEBUG] Attempting WhatsApp copy for pratapchoubey3@gmail.com...
+[2026-05-28T20:40:25.502Z] WHATSAPP: Delivered to 1 recipients

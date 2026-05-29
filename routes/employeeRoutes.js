@@ -184,13 +184,18 @@ router.post('/', async (req, res) => {
         try {
             const mailer = require('../utils/mailer');
             if (email) {
+                let originUrl = req.headers.origin || '';
+                if (!originUrl && req.headers.referer) {
+                    try { originUrl = new URL(req.headers.referer).origin; } catch(e){}
+                }
                 emailAttempted = true;
                 console.log('Sending email to', email, 'with loginId', loginId, 'password length', password ? password.length : 0);
                 emailSent = await mailer.sendCredentials(
                     email,
                     loginId,
                     password,
-                    role === 'areamanager' ? 'Area Manager' : 'Employee'
+                    role === 'areamanager' ? 'Area Manager' : 'Employee',
+                    originUrl
                 );
                 if (!emailSent) {
                     emailError = 'Credential email delivery failed (Mailjet not configured or provider rejected request)';
@@ -272,26 +277,18 @@ router.post('/:loginId/deactivate', async (req, res) => {
 
 /**
  * DELETE /api/employees/:loginId
- * Delete an employee (soft delete by setting isActive = false)
+ * Delete an employee permanently
  */
 router.delete('/:loginId', async (req, res) => {
     try {
         const { loginId } = req.params;
-        const employee = await Employee.findOneAndUpdate(
-            { loginId },
-            {
-                $set: { isActive: false, updatedAt: new Date() },
-                // Unset to free unique email/phone for reuse
-                $unset: { email: 1, phone: 1 }
-            },
-            { new: true }
-        );
+        const employee = await Employee.findOneAndDelete({ loginId });
 
         if (!employee) {
             return res.status(404).json({ error: 'Employee not found' });
         }
 
-        return res.status(200).json({ success: true, message: 'Employee deactivated', data: employee });
+        return res.status(200).json({ success: true, message: 'Employee permanently deleted', data: employee });
     } catch (err) {
         console.error('Delete employee error:', err);
         return res.status(500).json({ error: 'Failed to delete employee', details: err.message });

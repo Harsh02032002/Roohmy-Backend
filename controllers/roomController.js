@@ -95,14 +95,47 @@ const mongoose = require('mongoose');
 exports.getRoomsByProperty = async (req, res) => {
     try {
         const { propertyId } = req.params;
-        console.log("Searching rooms for propertyId:", propertyId);
+        const { unassigned } = req.query;
+        console.log("Searching rooms for propertyId:", propertyId, "unassigned:", unassigned);
         
         // Ensure propertyId is a valid ObjectId
         if (!mongoose.Types.ObjectId.isValid(propertyId)) {
           return res.status(400).json({ message: "Invalid Property ID format" });
         }
         
-        const rooms = await Room.find({ property: new mongoose.Types.ObjectId(propertyId) });
+        let rooms = await Room.find({ property: new mongoose.Types.ObjectId(propertyId) });
+        
+        if (unassigned === 'true') {
+            const Tenant = require('../models/Tenant');
+            const tenants = await Tenant.find({
+                property: new mongoose.Types.ObjectId(propertyId),
+                status: { $in: ['active', 'pending'] }
+            }).select('roomNo room');
+            
+            // Count tenants per room
+            const tenantCountByRoomNo = {};
+            const tenantCountByRoomId = {};
+            
+            tenants.forEach(t => {
+                if (t.room) {
+                    const rId = t.room.toString();
+                    tenantCountByRoomId[rId] = (tenantCountByRoomId[rId] || 0) + 1;
+                }
+                if (t.roomNo) {
+                    const rNo = String(t.roomNo).trim().toLowerCase();
+                    tenantCountByRoomNo[rNo] = (tenantCountByRoomNo[rNo] || 0) + 1;
+                }
+            });
+            
+            rooms = rooms.filter(room => {
+                const countById = tenantCountByRoomId[room._id.toString()] || 0;
+                const countByNo = tenantCountByRoomNo[String(room.title).trim().toLowerCase()] || 0;
+                const activeCount = Math.max(countById, countByNo);
+                const capacity = Number(room.beds) || 1;
+                return activeCount < capacity;
+            });
+        }
+        
         console.log(`Found ${rooms.length} rooms for property ${propertyId}`);
         res.json(rooms);
     } catch (err) {

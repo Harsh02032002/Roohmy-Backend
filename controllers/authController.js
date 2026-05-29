@@ -649,32 +649,75 @@ exports.login = async (req, res) => {
             };
         }
         
-        const user = await User.findOne(query);
-        if (!user) return res.status(401).json({ message: 'Invalid credentials' });
+        let user = await User.findOne(query);
+        let isMatch = false;
 
-        // Block disabled users
-        if (user.isActive === false) {
-            return res.status(403).json({ message: 'Account disabled' });
+        if (user) {
+            // Block disabled users
+            if (user.isActive === false) {
+                return res.status(403).json({ message: 'Account disabled' });
+            }
+
+            // Owners can login using loginId or phone (not email)
+            if (user.role === 'owner' && isEmail) {
+                return res.status(403).json({ message: 'Owners must login using Owner ID or Phone Number' });
+            }
+
+            isMatch = await user.matchPassword(password);
+        } else {
+            // Fallback for AreaManager
+            const areaManager = await AreaManager.findOne(query);
+            if (areaManager) {
+                if (areaManager.isActive === false) return res.status(403).json({ message: 'Account disabled' });
+                isMatch = (areaManager.password === password);
+                
+                if (isMatch) {
+                    user = {
+                        _id: areaManager._id,
+                        name: areaManager.name,
+                        email: areaManager.email,
+                        phone: areaManager.phone,
+                        role: 'areamanager',
+                        loginId: areaManager.loginId
+                    };
+                }
+            } else {
+                // Fallback for Employee
+                const employee = await Employee.findOne(query);
+                if (employee) {
+                    if (employee.isActive === false) return res.status(403).json({ message: 'Account disabled' });
+                    isMatch = (employee.password === password);
+                    
+                    if (isMatch) {
+                        user = {
+                            _id: employee._id,
+                            name: employee.name,
+                            email: employee.email,
+                            phone: employee.phone,
+                            team: employee.role,
+                            role: employee.role && employee.role.toLowerCase() === 'manager' ? 'manager' : 'employee',
+                            loginId: employee.loginId,
+                            permissions: employee.permissions
+                        };
+                    }
+                }
+            }
         }
 
-        // Owners can login using loginId or phone (not email)
-        if (user.role === 'owner' && isEmail) {
-            return res.status(403).json({ message: 'Owners must login using Owner ID or Phone Number' });
-        }
-
-        const isMatch = await user.matchPassword(password);
-        if (!isMatch) return res.status(401).json({ message: 'Invalid credentials' });
+        if (!user || !isMatch) return res.status(401).json({ message: 'Invalid credentials' });
 
         const token = generateToken(user);
         res.json({ 
             token, 
             user: { 
-                id: user._id, 
+                id: user._id || user.id, 
                 name: user.name, 
                 email: user.email,
                 phone: user.phone,
-                role: user.role, 
-                loginId: user.loginId 
+                role: user.role,
+                team: user.team,
+                loginId: user.loginId,
+                permissions: user.permissions 
             } 
         });
     } catch (err) {
@@ -694,7 +737,9 @@ exports.me = async (req, res) => {
                 email: req.user.email,
                 phone: req.user.phone,
                 role: req.user.role,
-                loginId: req.user.loginId
+                team: req.user.team,
+                loginId: req.user.loginId,
+                permissions: req.user.permissions
             }
         });
     } catch (err) {
