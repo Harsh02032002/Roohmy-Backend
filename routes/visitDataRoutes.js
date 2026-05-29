@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
 const VisitData = require('../models/VisitData');
 const User = require('../models/user');
 const Owner = require('../models/Owner');
@@ -7,6 +8,10 @@ const CheckinRecord = require('../models/CheckinRecord');
 const Property = require('../models/Property');
 const mailer = require('../utils/mailer');
 const { notifySuperadmin } = require('../utils/superadminNotifier');
+const VISITS_QUERY_TIMEOUT_MS = 12000;
+const VISITS_CACHE_TTL_MS = 10000;
+const visitsListCache = new Map();
+const visitsListInFlight = new Map();
 
 const APP_URL = process.env.APP_URL || process.env.APP_BASE_URL || process.env.WEB_APP_URL || 'https://app.roomhy.com';
 const DIGITAL_CHECKIN_URL = process.env.DIGITAL_CHECKIN_URL || process.env.FRONTEND_URL || 'https://admin.roomhy.com';
@@ -18,6 +23,33 @@ function stringToBoolean(value) {
         return value.toLowerCase() === 'yes';
     }
     return false;
+}
+
+function toNonNegativeInt(value) {
+    return Math.max(0, parseInt(value, 10) || 0);
+}
+
+function normalizeOccupancyFields(source = {}) {
+    const vacantRooms = toNonNegativeInt(source.vacantRooms);
+    const vacantBeds = toNonNegativeInt(source.vacantBeds);
+    const occupiedRooms = toNonNegativeInt(source.occupiedRooms);
+    const occupiedBeds = toNonNegativeInt(source.occupiedBeds ?? source.bedCount);
+    return {
+        vacantRooms,
+        vacantBeds,
+        occupiedRooms,
+        occupiedBeds,
+        roomCount: vacantRooms + occupiedRooms,
+        bedCount: vacantBeds + occupiedBeds
+    };
+}
+
+function hasVacancy(source = {}) {
+    return toNonNegativeInt(source.vacantRooms) > 0;
+}
+
+function uniqueTruthy(values = []) {
+    return Array.from(new Set(values.map((value) => String(value || '').trim()).filter(Boolean)));
 }
 
 // Owner login ID format: ROOMHY + 4 digits (e.g., ROOMHY1234)
@@ -61,6 +93,21 @@ function escapeRegex(value) {
     return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+async function resolveRequestUser(req) {
+    try {
+        const authHeader = req.headers.authorization || '';
+        if (!authHeader.startsWith('Bearer ')) return null;
+        const token = authHeader.slice(7).trim();
+        if (!token) return null;
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+        if (!decoded?.id) return null;
+        const user = await User.findById(decoded.id).select('role loginId').lean();
+        return user || null;
+    } catch (_) {
+        return null;
+    }
+}
+
 // ============================================================
 // POST: Save visit data (used by visit.html)
 // ============================================================
@@ -80,6 +127,7 @@ router.post('/', async (req, res) => {
         processedData.cookingAllowed = stringToBoolean(processedData.cookingAllowed);
         processedData.smokingAllowed = stringToBoolean(processedData.smokingAllowed);
         processedData.petsAllowed = stringToBoolean(processedData.petsAllowed);
+        Object.assign(processedData, normalizeOccupancyFields(processedData));
 
         // Generate visitId if not provided
         // Use _id from frontend as visitId (it comes as _id from visit.html)
@@ -153,52 +201,126 @@ router.post('/', async (req, res) => {
 // ============================================================
 router.get('/', async (req, res) => {
     try {
-        const staffId = req.query.staffId;
-        const staffName = (req.query.staffName || '').toString().trim();
+        const requester = await resolveRequestUser(req);
+        const requestedStaffId = String(req.query.staffId || '').trim();
+        const requestedStaffName = (req.query.staffName || '').toString().trim();
+
+        // Employees should only see their own visit reports.
+        const enforcedStaffId =
+            requester?.role === 'employee'
+                ? String(requester.loginId || requestedStaffId || '').trim()
+                : requestedStaffId;
+
+        const staffId = enforcedStaffId;
+        const staffName = staffId ? '' : requestedStaffName;
+        const limit = Math.max(1, Math.min(500, parseInt(req.query.limit, 10) || 100));
+        const skip = Math.max(0, parseInt(req.query.skip, 10) || 0);
+        const cacheKey = JSON.stringify({
+            staffId,
+            staffName,
+            limit,
+            skip
+        });
+        const cached = visitsListCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < VISITS_CACHE_TTL_MS) {
+            return res.json(cached.payload);
+        }
 
         let query = {};
+        let usesCaseInsensitiveMatch = false;
         if (staffId || staffName) {
             const or = [];
             if (staffId) {
-                const escapedId = String(staffId).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const idRegex = new RegExp(`^${escapedId}$`, 'i');
+                const idValues = uniqueTruthy([
+                    staffId,
+                    String(staffId).toUpperCase(),
+                    String(staffId).toLowerCase()
+                ]);
                 or.push(
-                    { staffId: idRegex },
-                    { submittedById: idRegex },
-                    { submittedByLoginId: idRegex },
-                    { ownerLoginId: idRegex }
+                    { staffId: { $in: idValues } },
+                    { submittedById: { $in: idValues } },
+                    { submittedByLoginId: { $in: idValues } },
+                    { ownerLoginId: { $in: idValues } }
                 );
             }
             if (staffName) {
-                const escapedName = staffName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const nameRegex = new RegExp(`^${escapedName}$`, 'i');
+                usesCaseInsensitiveMatch = true;
                 or.push(
-                    { staffName: nameRegex },
-                    { submittedBy: nameRegex },
-                    { visitorName: nameRegex }
+                    { staffName },
+                    { submittedBy: staffName }
                 );
             }
             query = or.length ? { $or: or } : {};
-            console.log('[visits/GET] Fetching visits for staff filter:', { staffId, staffName });
+            console.log('[visits/GET] Fetching visits for staff filter:', {
+                staffId,
+                staffName,
+                enforcedByRole: requester?.role === 'employee'
+            });
         } else {
             console.log('[visits/GET] Fetching all visits');
         }
-        
-        const visits = await VisitData.find(query).sort({ submittedAt: -1 });
-        
-        console.log(`? [visits/GET] Returning ${visits.length} visits`);
-        
-        res.json({
-            success: true,
-            count: visits.length,
-            visits: visits
-        });
+
+        const fetchVisits = async () => {
+            const visitsQuery = VisitData.find(query)
+                .sort({ submittedAt: -1 })
+                .limit(limit)
+                .skip(skip)
+                .maxTimeMS(VISITS_QUERY_TIMEOUT_MS)
+                .lean();
+
+            const countQuery = VisitData.countDocuments(query).maxTimeMS(VISITS_QUERY_TIMEOUT_MS);
+
+            if (usesCaseInsensitiveMatch) {
+                const collation = { locale: 'en', strength: 2 };
+                visitsQuery.collation(collation);
+                countQuery.collation(collation);
+            }
+
+            const [visits, totalCount] = await Promise.all([visitsQuery, countQuery]);
+
+            console.log(`? [visits/GET] Returning ${visits.length} visits from ${totalCount} total (limit: ${limit}, skip: ${skip})`);
+            return {
+                success: true,
+                count: totalCount,
+                returned: visits.length,
+                visits
+            };
+        };
+
+        let requestPromise = visitsListInFlight.get(cacheKey);
+        if (!requestPromise) {
+            requestPromise = fetchVisits();
+            visitsListInFlight.set(cacheKey, requestPromise);
+        }
+
+        const payload = await requestPromise;
+        visitsListInFlight.delete(cacheKey);
+        visitsListCache.set(cacheKey, { timestamp: Date.now(), payload });
+        res.json(payload);
     } catch (error) {
         console.error('Error fetching visits:', error);
-        res.status(500).json({
+        const limit = Math.max(1, Math.min(500, parseInt(req.query.limit, 10) || 100));
+        const skip = Math.max(0, parseInt(req.query.skip, 10) || 0);
+        const cacheKey = JSON.stringify({
+            staffId: String(req.query.staffId || '').trim(),
+            staffName: (req.query.staffName || '').toString().trim(),
+            limit,
+            skip
+        });
+        visitsListInFlight.delete(cacheKey);
+        const stale = visitsListCache.get(cacheKey);
+        if (stale?.payload) {
+            return res.status(200).json({
+                ...stale.payload,
+                stale: true
+            });
+        }
+        res.status(200).json({
             success: false,
-            message: 'Error fetching visits',
-            error: error.message
+            message: error?.message?.includes('maxTimeMS') ? 'Visits query exceeded database time limit' : 'Error fetching visits',
+            error: error.message,
+            count: 0,
+            visits: []
         });
     }
 });
@@ -210,15 +332,31 @@ router.get('/pending', async (req, res) => {
     try {
         const visits = await VisitData.find({
             status: { $in: ['submitted', 'pending_review'] }
-        }).sort({ submittedAt: -1 });
+        }).sort({ submittedAt: -1 }).lean();
 
-        console.log(`? [visits/pending] Returning ${visits.length} pending visits`);
+        // Auto-sync kycStatus: for visits with kycStatus 'sent', check if owner completed KYC via digital-checkin
+        const sentVisits = visits.filter(v => v.kycStatus === 'sent' && v.generatedCredentials?.loginId);
+        if (sentVisits.length > 0) {
+            await Promise.all(sentVisits.map(async (v) => {
+                try {
+                    const owner = await Owner.findOne({ loginId: v.generatedCredentials.loginId })
+                        .select('aadhaarNumber checkinAadhaarNumber kycStatus').lean();
+                    const kycDone = !!(
+                        owner?.aadhaarNumber ||
+                        owner?.checkinAadhaarNumber ||
+                        owner?.kycStatus === 'verified' ||
+                        owner?.kycStatus === 'completed'
+                    );
+                    if (kycDone) {
+                        await VisitData.findOneAndUpdate({ visitId: v.visitId }, { kycStatus: 'completed' });
+                        v.kycStatus = 'completed';
+                    }
+                } catch (_) {}
+            }));
+        }
 
-        res.json({
-            success: true,
-            count: visits.length,
-            visits: visits
-        });
+        console.log(`[visits/pending] Returning ${visits.length} pending visits`);
+        res.json({ success: true, count: visits.length, visits });
     } catch (error) {
         console.error('Error fetching pending visits:', error);
         res.status(500).json({
@@ -242,6 +380,33 @@ router.post('/approve', async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: 'Missing visitId'
+            });
+        }
+
+        // KYC must be completed before approval.
+        // KYC is done via /digital-checkin/ownerprofile which writes aadhaarNumber to Owner record.
+        const visitForKycCheck = await VisitData.findOne({ visitId }).select('kycStatus generatedCredentials').lean();
+        let kycCompleted = visitForKycCheck?.kycStatus === 'completed';
+
+        if (!kycCompleted && visitForKycCheck?.generatedCredentials?.loginId) {
+            const ownerRecord = await Owner.findOne({ loginId: visitForKycCheck.generatedCredentials.loginId })
+                .select('aadhaarNumber checkinAadhaarNumber kycStatus').lean();
+            kycCompleted = !!(
+                ownerRecord?.aadhaarNumber ||
+                ownerRecord?.checkinAadhaarNumber ||
+                ownerRecord?.kycStatus === 'verified' ||
+                ownerRecord?.kycStatus === 'completed'
+            );
+            // Sync back to VisitData so UI shows Completed
+            if (kycCompleted) {
+                await VisitData.findOneAndUpdate({ visitId }, { kycStatus: 'completed' });
+            }
+        }
+
+        if (!kycCompleted) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cannot approve. Owner KYC must be completed first. Send the KYC link to the owner.'
             });
         }
 
@@ -327,6 +492,8 @@ router.post('/approve', async (req, res) => {
             visit.city ||
             finalLoginId
         ).trim().toUpperCase();
+        const occupancy = normalizeOccupancyFields(visit);
+        const propertyHasVacancy = hasVacancy(occupancy);
 
         await Owner.findOneAndUpdate(
             { loginId: finalLoginId },
@@ -347,6 +514,7 @@ router.post('/approve', async (req, res) => {
                         locationCode: propertyLocationCode,
                         updatedAt: new Date()
                     },
+                    ...occupancy,
                     credentials: {
                         password: finalPassword,
                         firstTime: true
@@ -371,18 +539,38 @@ router.post('/approve', async (req, res) => {
                 title: propertyTitle,
                 description: visit.description || '',
                 address: propertyAddress,
+                city: visit.city || '',
+                area: ownerArea || '',
+                propertyType: visit.propertyType || '',
+                monthlyRent: Number(visit.monthlyRent || 0),
+                ...occupancy,
+                ownerName,
+                ownerEmail: ownerEmailFromVisit,
+                ownerPhone,
                 locationCode: propertyLocationCode || 'GEN',
                 ownerLoginId: finalLoginId,
                 status: 'active',
-                isPublished: true
+                isPublished: propertyHasVacancy
             });
         } else {
             ownerProperty.description = visit.description || ownerProperty.description || '';
             ownerProperty.address = propertyAddress || ownerProperty.address || '';
+            ownerProperty.city = visit.city || ownerProperty.city || '';
+            ownerProperty.area = ownerArea || ownerProperty.area || '';
+            ownerProperty.propertyType = visit.propertyType || ownerProperty.propertyType || '';
+            ownerProperty.monthlyRent = Number(visit.monthlyRent || ownerProperty.monthlyRent || 0);
+            ownerProperty.roomCount = occupancy.roomCount || ownerProperty.roomCount || 0;
+            ownerProperty.bedCount = occupancy.bedCount || ownerProperty.bedCount || 0;
+            ownerProperty.vacantRooms = occupancy.vacantRooms;
+            ownerProperty.occupiedRooms = occupancy.occupiedRooms;
+            ownerProperty.occupiedBeds = occupancy.occupiedBeds;
+            ownerProperty.ownerName = ownerName || ownerProperty.ownerName || '';
+            ownerProperty.ownerEmail = ownerEmailFromVisit || ownerProperty.ownerEmail || '';
+            ownerProperty.ownerPhone = ownerPhone || ownerProperty.ownerPhone || '';
             ownerProperty.locationCode = propertyLocationCode || ownerProperty.locationCode || 'GEN';
             ownerProperty.ownerLoginId = finalLoginId;
             ownerProperty.status = 'active';
-            ownerProperty.isPublished = true;
+            ownerProperty.isPublished = propertyHasVacancy;
             await ownerProperty.save();
         }
 
@@ -404,6 +592,7 @@ router.post('/approve', async (req, res) => {
                     ownerLoginId: finalLoginId,
                     rent: visit.monthlyRent || 0,
                     deposit: visit.deposit || '',
+                    ...occupancy,
                     description: visit.description || '',
                     amenities: visit.amenities || [],
                     genderSuitability: visit.gender || (visit.propertyInfo && visit.propertyInfo.genderSuitability) || '',
@@ -415,8 +604,8 @@ router.post('/approve', async (req, res) => {
                     tempPassword: finalPassword
                 },
                 propertyRef: ownerProperty._id,
-                isLiveOnWebsite: isLiveOnWebsite || false,
-                status: isLiveOnWebsite ? 'live' : 'approved',
+                isLiveOnWebsite: propertyHasVacancy ? Boolean(isLiveOnWebsite) : false,
+                status: propertyHasVacancy && isLiveOnWebsite ? 'live' : 'approved',
                 approvedAt: new Date(),
                 submittedAt: visit.submittedAt || new Date(),
                 approvedBy: 'superadmin'
@@ -454,24 +643,44 @@ router.post('/approve', async (req, res) => {
             if (ownerEmail) {
                 emailAttempted = true;
                 const loginPageLink = `${APP_URL}/propertyowner/ownerlogin`;
-                const mainCheckinLink = `${DIGITAL_CHECKIN_URL}/digital-checkin/index`;
-                const directCheckinLink = `${DIGITAL_CHECKIN_URL}/digital-checkin/ownerprofile?loginId=${encodeURIComponent(finalLoginId)}&email=${encodeURIComponent(ownerEmail)}&area=${encodeURIComponent(ownerArea || '')}&password=${encodeURIComponent(finalPassword)}`;
-                const subject = 'RoomHy Property Approved - Owner Login and Digital KYC';
-                const text = `Property approved\nProperty: ${propertyTitle}\nLogin ID: ${finalLoginId}\nTemporary Password: ${finalPassword}\nArea: ${ownerArea || 'N/A'}\nDigital KYC: ${mainCheckinLink}\nDirect Digital KYC: ${directCheckinLink}\nOwner Login Page: ${loginPageLink}`;
-                const html = `
-                    <div style="font-family: Arial, sans-serif; font-size: 14px; color: #111;">
-                        <h2>Property Approved</h2>
-                        <p>Hi ${ownerName},</p>
-                        <p>Your property has been approved on RoomHy and added under your owner account.</p>
-                        <p><strong>Property:</strong> ${propertyTitle}</p>
-                        <p><strong>Login ID:</strong> ${finalLoginId}</p>
-                        <p><strong>Temporary Password:</strong> ${finalPassword}</p>
-                        <p><strong>Area:</strong> ${ownerArea || 'N/A'}</p>
-                        <p><strong>Digital KYC (Main):</strong><br><a href="${mainCheckinLink}">${mainCheckinLink}</a></p>
-                        <p><strong>Owner Digital KYC (Direct):</strong><br><a href="${directCheckinLink}">${directCheckinLink}</a></p>
-                        <p><strong>Owner Login Page:</strong><br><a href="${loginPageLink}">${loginPageLink}</a></p>
-                    </div>
-                `;
+                const subject = 'Welcome to RoomHy - Your Property is Approved!';
+                const text = `Welcome to RoomHy!\n\nDear ${ownerName},\n\nYour property has been approved.\n\nProperty: ${propertyTitle}\nLogin ID: ${finalLoginId}\nTemporary Password: ${finalPassword}\n\nOwner Login Page: ${loginPageLink}\n\nPlease change your password after first login.\n\nRoomHy Team`;
+                const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<style>
+  body{margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f5;}
+  .wrap{max-width:520px;margin:40px auto;padding:20px;}
+  .card{background:#fff;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.1);overflow:hidden;}
+  .hdr{background:linear-gradient(135deg,#667eea,#764ba2);padding:30px;text-align:center;}
+  .hdr h1{margin:0;color:#fff;font-size:26px;font-weight:700;}
+  .hdr p{margin:8px 0 0;color:rgba(255,255,255,.85);font-size:13px;}
+  .body{padding:30px;color:#333;}
+  .cred{background:#f5f7fa;border-left:4px solid #667eea;border-radius:10px;padding:20px;margin:20px 0;}
+  .lbl{color:#666;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+  .val{color:#222;font-size:18px;font-weight:700;background:#fff;padding:8px 14px;border-radius:6px;display:inline-block;}
+  .btn{display:block;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-align:center;padding:14px;text-decoration:none;border-radius:10px;margin:24px 0;font-size:15px;font-weight:600;}
+  .warn{background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:14px;font-size:13px;color:#856404;margin-top:16px;}
+  .foot{background:#f8f9fa;padding:16px;text-align:center;border-top:1px solid #eee;}
+  .foot p{margin:0;color:#999;font-size:12px;}
+</style></head>
+<body>
+  <div class="wrap"><div class="card">
+    <div class="hdr"><h1>RoomHy</h1><p>Your Property is Approved!</p></div>
+    <div class="body">
+      <p>Dear <strong>${ownerName}</strong>,</p>
+      <p>Congratulations! Your property <strong>${propertyTitle}</strong> has been approved and added to your owner account.</p>
+      <div class="cred">
+        <div style="margin-bottom:14px;"><div class="lbl">Login ID</div><div class="val">${finalLoginId}</div></div>
+        <div><div class="lbl">Temporary Password</div><div class="val">${finalPassword}</div></div>
+      </div>
+      <a href="${loginPageLink}" class="btn">Login to Owner Portal</a>
+      <div class="warn">⚠️ <strong>Important:</strong> Please change your password after your first login.</div>
+    </div>
+    <div class="foot"><p>© 2025 RoomHy. All rights reserved. | support@roomhy.com</p></div>
+  </div></div>
+</body>
+</html>`;
                 emailSent = await mailer.sendMail(ownerEmail, subject, text, html);
             }
         } catch (emailErr) {
@@ -508,7 +717,7 @@ router.post('/approve', async (req, res) => {
 // ============================================================
 router.post('/hold', async (req, res) => {
     try {
-        const { visitId, holdReason } = req.body;
+        const { visitId, holdReason, holdAction } = req.body;
 
         if (!visitId) {
             return res.status(400).json({
@@ -523,6 +732,7 @@ router.post('/hold', async (req, res) => {
             {
                 status: 'hold',
                 holdReason: holdReason || '',
+                holdAction: holdAction || 'edit',
                 holdAt: new Date()
             },
             { new: true }
@@ -573,6 +783,9 @@ router.post('/submit', async (req, res) => {
             genderSuitability,
             monthlyRent,
             deposit,
+            vacantRooms,
+            occupiedRooms,
+            occupiedBeds,
             ownerName,
             ownerEmail,
             ownerPhone,
@@ -659,6 +872,7 @@ router.post('/submit', async (req, res) => {
             genderSuitability,
             monthlyRent: parseInt(monthlyRent) || 0,
             deposit,
+            ...normalizeOccupancyFields({ vacantRooms, occupiedRooms, occupiedBeds }),
             ownerName,
             ownerEmail,
             ownerPhone,
@@ -797,6 +1011,156 @@ router.get('/approved', async (req, res) => {
 });
 
 // ============================================================
+// POST: Send KYC link to property owner's email
+// Generates credentials, creates Owner record, sends digital-checkin link
+// ============================================================
+router.post('/:visitId/send-kyc-link', async (req, res) => {
+    try {
+        const visit = await VisitData.findOne({ visitId: req.params.visitId });
+        if (!visit) {
+            return res.status(404).json({ success: false, message: 'Visit not found' });
+        }
+
+        const ownerEmail = visit.ownerEmail || '';
+        if (!ownerEmail) {
+            return res.status(400).json({ success: false, message: 'No owner email found on this visit' });
+        }
+
+        // Reuse existing credentials if already generated, otherwise create new ones
+        let loginId = visit.generatedCredentials?.loginId || '';
+        let tempPassword = visit.generatedCredentials?.tempPassword || '';
+
+        const normalizedLoginId = normalizeOwnerLoginId(loginId);
+        if (!normalizedLoginId || await isOwnerLoginIdTaken(normalizedLoginId)) {
+            loginId = await generateUniqueOwnerLoginId();
+            tempPassword = Math.random().toString(36).slice(-8);
+        } else {
+            loginId = normalizedLoginId;
+            if (!tempPassword) tempPassword = Math.random().toString(36).slice(-8);
+        }
+
+        const ownerName = visit.ownerName || 'Owner';
+        const ownerPhone = visit.ownerPhone || visit.contactPhone || '';
+        const ownerArea = visit.area || '';
+        const propertyLocationCode = String(ownerArea || visit.city || loginId).trim().toUpperCase();
+        const occupancy = normalizeOccupancyFields(visit);
+
+        // Create/update Owner record so the digital-checkin page can look it up
+        await Owner.findOneAndUpdate(
+            { loginId },
+            {
+                $set: {
+                    loginId,
+                    name: ownerName,
+                    email: ownerEmail,
+                    phone: ownerPhone,
+                    area: ownerArea,
+                    locationCode: propertyLocationCode,
+                    profile: { name: ownerName, email: ownerEmail, phone: ownerPhone, locationCode: propertyLocationCode, updatedAt: new Date() },
+                    ...occupancy,
+                    credentials: { password: tempPassword, firstTime: true },
+                    checkinPassword: tempPassword,
+                    isActive: true
+                },
+                $setOnInsert: { createdAt: new Date() }
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+
+        // Save credentials + kycStatus on VisitData
+        await VisitData.findOneAndUpdate(
+            { visitId: visit.visitId },
+            {
+                kycStatus: 'sent',
+                kycSentAt: new Date(),
+                generatedCredentials: { loginId, tempPassword }
+            }
+        );
+
+        // Build link to existing digital-checkin ownerprofile page
+        const kycLink = `${DIGITAL_CHECKIN_URL}/digital-checkin/ownerprofile?loginId=${encodeURIComponent(loginId)}&email=${encodeURIComponent(ownerEmail)}&area=${encodeURIComponent(ownerArea)}&password=${encodeURIComponent(tempPassword)}`;
+
+        await mailer.sendKycLinkEmail(ownerEmail, ownerName, visit.propertyName || 'Property', kycLink);
+
+        console.log(`[visits/send-kyc-link] KYC link sent to ${ownerEmail} for visit ${visit.visitId}, loginId: ${loginId}`);
+        res.json({ success: true, message: 'KYC link sent successfully to owner email', loginId });
+    } catch (error) {
+        console.error('[visits/send-kyc-link] Error:', error.message);
+        res.status(500).json({ success: false, message: 'Error sending KYC link', error: error.message });
+    }
+});
+
+// ============================================================
+// GET: Validate KYC token and return visit info (used by owner KYC form)
+// ============================================================
+router.get('/kyc/:token', async (req, res) => {
+    try {
+        const decoded = jwt.verify(req.params.token, process.env.JWT_SECRET || 'secret');
+        const visit = await VisitData.findOne({
+            visitId: decoded.visitId,
+            kycToken: req.params.token
+        }).select('visitId propertyName ownerName ownerEmail kycStatus').lean();
+
+        if (!visit) {
+            return res.status(404).json({ success: false, message: 'Invalid or expired KYC link' });
+        }
+        if (visit.kycStatus === 'completed') {
+            return res.status(410).json({ success: false, message: 'KYC already completed for this property' });
+        }
+
+        res.json({
+            success: true,
+            visitId: visit.visitId,
+            propertyName: visit.propertyName,
+            ownerName: visit.ownerName
+        });
+    } catch (_) {
+        res.status(401).json({ success: false, message: 'KYC link is invalid or has expired. Please contact RoomHy.' });
+    }
+});
+
+// ============================================================
+// POST: Submit KYC data from owner (used by owner KYC form)
+// ============================================================
+router.post('/kyc/:token/submit', async (req, res) => {
+    try {
+        const decoded = jwt.verify(req.params.token, process.env.JWT_SECRET || 'secret');
+        const { aadhaarNumber, phone } = req.body;
+
+        if (!aadhaarNumber || !phone) {
+            return res.status(400).json({ success: false, message: 'Aadhaar number and phone are required' });
+        }
+
+        const visit = await VisitData.findOne({
+            visitId: decoded.visitId,
+            kycToken: req.params.token
+        });
+
+        if (!visit) {
+            return res.status(404).json({ success: false, message: 'Invalid or expired KYC link' });
+        }
+        if (visit.kycStatus === 'completed') {
+            return res.status(409).json({ success: false, message: 'KYC already submitted for this property' });
+        }
+
+        await VisitData.findOneAndUpdate(
+            { visitId: decoded.visitId },
+            {
+                kycStatus: 'completed',
+                kycAadhaarNumber: aadhaarNumber.trim(),
+                kycPhone: phone.trim(),
+                kycCompletedAt: new Date()
+            }
+        );
+
+        console.log(`[visits/kyc/submit] KYC completed for visit ${decoded.visitId}`);
+        res.json({ success: true, message: 'KYC submitted successfully. The admin will review and approve your property.' });
+    } catch (_) {
+        res.status(401).json({ success: false, message: 'KYC link is invalid or has expired. Please contact RoomHy.' });
+    }
+});
+
+// ============================================================
 // GET: Get a single visit by ID
 // ============================================================
 router.get('/:visitId', async (req, res) => {
@@ -824,94 +1188,29 @@ router.get('/:visitId', async (req, res) => {
     }
 });
 
+
+
 // ============================================================
-// PUT: Update full visit details
+// POST: Reject a visit with explicit reason and next action
 // ============================================================
-router.put('/:visitId', async (req, res) => {
+router.post('/reject', async (req, res) => {
     try {
-        const {
-            propertyName,
-            propertyType,
-            propertyId,
-            address,
-            area,
-            areaLocality,
-            city,
-            landmark,
-            nearbyLocation,
-            ownerName,
-            ownerEmail,
-            contactPhone,
-            gender,
-            monthlyRent,
-            deposit,
-            electricityCharges,
-            foodCharges,
-            maintenanceCharges,
-            minStay,
-            entryExit,
-            amenities,
-            cleanlinessRating,
-            ownerBehaviourPublic,
-            studentReviewsRating,
-            employeeRating,
-            visitorsAllowed,
-            cookingAllowed,
-            smokingAllowed,
-            petsAllowed,
-            internalRemarks,
-            studentReviews,
-            cleanlinessNote,
-            ownerBehaviour,
-            latitude,
-            longitude,
-            photos,
-            professionalPhotos,
-            locationCode
-        } = req.body;
+        const { visitId, rejectReason, rejectAction } = req.body;
+
+        if (!visitId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Missing visitId'
+            });
+        }
 
         const visit = await VisitData.findOneAndUpdate(
-            { visitId: req.params.visitId },
+            { $or: [{ _id: visitId }, { visitId: visitId }] },
             {
-                ...(propertyName !== undefined && { propertyName }),
-                ...(propertyType !== undefined && { propertyType }),
-                ...(propertyId !== undefined && { propertyId }),
-                ...(address !== undefined && { address }),
-                ...(area !== undefined && { area }),
-                ...(areaLocality !== undefined && { areaLocality }),
-                ...(city !== undefined && { city }),
-                ...(landmark !== undefined && { landmark }),
-                ...(nearbyLocation !== undefined && { nearbyLocation }),
-                ...(ownerName !== undefined && { ownerName }),
-                ...(ownerEmail !== undefined && { ownerEmail }),
-                ...(contactPhone !== undefined && { contactPhone, ownerPhone: contactPhone }),
-                ...(gender !== undefined && { gender }),
-                ...(monthlyRent !== undefined && { monthlyRent: parseInt(monthlyRent, 10) || 0 }),
-                ...(deposit !== undefined && { deposit: parseInt(deposit, 10) || 0 }),
-                ...(electricityCharges !== undefined && { electricityCharges: parseInt(electricityCharges, 10) || 0 }),
-                ...(foodCharges !== undefined && { foodCharges: parseInt(foodCharges, 10) || 0 }),
-                ...(maintenanceCharges !== undefined && { maintenanceCharges: parseInt(maintenanceCharges, 10) || 0 }),
-                ...(minStay !== undefined && { minStay: parseInt(minStay, 10) || 0 }),
-                ...(entryExit !== undefined && { entryExit }),
-                ...(amenities !== undefined && { amenities: Array.isArray(amenities) ? amenities : (amenities ? [amenities] : []) }),
-                ...(cleanlinessRating !== undefined && { cleanlinessRating: parseInt(cleanlinessRating, 10) || 0 }),
-                ...(ownerBehaviourPublic !== undefined && { ownerBehaviourPublic }),
-                ...(studentReviewsRating !== undefined && { studentReviewsRating: parseInt(studentReviewsRating, 10) || 0 }),
-                ...(employeeRating !== undefined && { employeeRating: parseInt(employeeRating, 10) || 0 }),
-                ...(visitorsAllowed !== undefined && { visitorsAllowed: stringToBoolean(visitorsAllowed) }),
-                ...(cookingAllowed !== undefined && { cookingAllowed: stringToBoolean(cookingAllowed) }),
-                ...(smokingAllowed !== undefined && { smokingAllowed: stringToBoolean(smokingAllowed) }),
-                ...(petsAllowed !== undefined && { petsAllowed: stringToBoolean(petsAllowed) }),
-                ...(internalRemarks !== undefined && { internalRemarks }),
-                ...(studentReviews !== undefined && { studentReviews }),
-                ...(cleanlinessNote !== undefined && { cleanlinessNote }),
-                ...(ownerBehaviour !== undefined && { ownerBehaviour }),
-                ...(latitude !== undefined && { latitude }),
-                ...(longitude !== undefined && { longitude }),
-                ...(photos !== undefined && { photos: Array.isArray(photos) ? photos : (photos ? [photos] : []) }),
-                ...(professionalPhotos !== undefined && { professionalPhotos: Array.isArray(professionalPhotos) ? professionalPhotos : (professionalPhotos ? [professionalPhotos] : []) }),
-                ...(locationCode !== undefined && { locationCode }),
-                updatedAt: new Date()
+                status: 'rejected',
+                rejectReason: rejectReason || '',
+                rejectAction: rejectAction || 'cancel',
+                rejectedAt: new Date()
             },
             { new: true }
         );
@@ -923,16 +1222,18 @@ router.put('/:visitId', async (req, res) => {
             });
         }
 
+        console.log('? [visits/reject] Visit rejected:', visitId);
+
         res.json({
             success: true,
-            message: 'Visit updated successfully',
+            message: 'Visit rejected successfully',
             visit
         });
     } catch (error) {
-        console.error('Error updating visit:', error);
+        console.error('? [visits/reject] Error rejecting visit:', error);
         res.status(500).json({
             success: false,
-            message: 'Error updating visit',
+            message: 'Error rejecting visit',
             error: error.message
         });
     }
@@ -975,6 +1276,158 @@ router.put('/:visitId/status', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error updating visit status',
+            error: error.message
+        });
+    }
+});
+
+// ============================================================
+// PUT: Update full visit details (moved after status route to avoid interception)
+// ============================================================
+router.put('/:visitId', async (req, res) => {
+    try {
+        const {
+            propertyName,
+            propertyType,
+            propertyId,
+            address,
+            area,
+            areaLocality,
+            city,
+            landmark,
+            nearbyLocation,
+            ownerName,
+            ownerEmail,
+            contactPhone,
+            gender,
+            monthlyRent,
+            deposit,
+            vacantRooms,
+            occupiedRooms,
+            occupiedBeds,
+            electricityCharges,
+            foodCharges,
+            maintenanceCharges,
+            minStay,
+            entryExit,
+            amenities,
+            cleanlinessRating,
+            ownerBehaviourPublic,
+            studentReviewsRating,
+            employeeRating,
+            visitorsAllowed,
+            cookingAllowed,
+            smokingAllowed,
+            petsAllowed,
+            internalRemarks,
+            studentReviews,
+            cleanlinessNote,
+            ownerBehaviour,
+            latitude,
+            longitude,
+            photos,
+            professionalPhotos,
+            locationCode,
+            bankAccountHolderName,
+            bankAccountNumber,
+            bankIfscCode,
+            bankName,
+            bankBranchName,
+            bankUpiId
+        } = req.body;
+
+        const visit = await VisitData.findOneAndUpdate(
+            { visitId: req.params.visitId },
+            {
+                ...(propertyName !== undefined && { propertyName }),
+                ...(propertyType !== undefined && { propertyType }),
+                ...(propertyId !== undefined && { propertyId }),
+                ...(address !== undefined && { address }),
+                ...(area !== undefined && { area }),
+                ...(areaLocality !== undefined && { areaLocality }),
+                ...(city !== undefined && { city }),
+                ...(landmark !== undefined && { landmark }),
+                ...(nearbyLocation !== undefined && { nearbyLocation }),
+                ...(ownerName !== undefined && { ownerName }),
+                ...(ownerEmail !== undefined && { ownerEmail }),
+                ...(contactPhone !== undefined && { contactPhone, ownerPhone: contactPhone }),
+                ...(gender !== undefined && { gender }),
+                ...(monthlyRent !== undefined && { monthlyRent: parseInt(monthlyRent, 10) || 0 }),
+                ...(deposit !== undefined && { deposit: parseInt(deposit, 10) || 0 }),
+                ...((vacantRooms !== undefined || occupiedRooms !== undefined || occupiedBeds !== undefined)
+                    ? normalizeOccupancyFields({ vacantRooms, occupiedRooms, occupiedBeds })
+                    : {}),
+                ...(electricityCharges !== undefined && { electricityCharges: parseInt(electricityCharges, 10) || 0 }),
+                ...(foodCharges !== undefined && { foodCharges: parseInt(foodCharges, 10) || 0 }),
+                ...(maintenanceCharges !== undefined && { maintenanceCharges: parseInt(maintenanceCharges, 10) || 0 }),
+                ...(minStay !== undefined && { minStay: parseInt(minStay, 10) || 0 }),
+                ...(entryExit !== undefined && { entryExit }),
+                ...(amenities !== undefined && { amenities: Array.isArray(amenities) ? amenities : (amenities ? [amenities] : []) }),
+                ...(cleanlinessRating !== undefined && { cleanlinessRating: parseInt(cleanlinessRating, 10) || 0 }),
+                ...(ownerBehaviourPublic !== undefined && { ownerBehaviourPublic }),
+                ...(studentReviewsRating !== undefined && { studentReviewsRating: parseInt(studentReviewsRating, 10) || 0 }),
+                ...(employeeRating !== undefined && { employeeRating: parseInt(employeeRating, 10) || 0 }),
+                ...(visitorsAllowed !== undefined && { visitorsAllowed: stringToBoolean(visitorsAllowed) }),
+                ...(cookingAllowed !== undefined && { cookingAllowed: stringToBoolean(cookingAllowed) }),
+                ...(smokingAllowed !== undefined && { smokingAllowed: stringToBoolean(smokingAllowed) }),
+                ...(petsAllowed !== undefined && { petsAllowed: stringToBoolean(petsAllowed) }),
+                ...(internalRemarks !== undefined && { internalRemarks }),
+                ...(studentReviews !== undefined && { studentReviews }),
+                ...(cleanlinessNote !== undefined && { cleanlinessNote }),
+                ...(ownerBehaviour !== undefined && { ownerBehaviour }),
+                ...(latitude !== undefined && { latitude }),
+                ...(longitude !== undefined && { longitude }),
+                ...(photos !== undefined && { photos: Array.isArray(photos) ? photos : (photos ? [photos] : []) }),
+                ...(professionalPhotos !== undefined && { professionalPhotos: Array.isArray(professionalPhotos) ? professionalPhotos : (professionalPhotos ? [professionalPhotos] : []) }),
+                ...(locationCode !== undefined && { locationCode }),
+                ...(bankAccountHolderName !== undefined && { bankAccountHolderName }),
+                ...(bankAccountNumber !== undefined && { bankAccountNumber }),
+                ...(bankIfscCode !== undefined && { bankIfscCode }),
+                ...(bankName !== undefined && { bankName }),
+                ...(bankBranchName !== undefined && { bankBranchName }),
+                ...(bankUpiId !== undefined && { bankUpiId }),
+                updatedAt: new Date()
+            },
+            { new: true }
+        );
+
+        if (!visit) {
+            return res.status(404).json({
+                success: false,
+                message: 'Visit not found'
+            });
+        }
+
+        // Auto-sync bank details to Owner if any bank field was provided
+        const hasBankData = [bankAccountHolderName, bankAccountNumber, bankIfscCode, bankName, bankBranchName].some(v => v !== undefined && v !== '');
+        if (hasBankData && visit.generatedCredentials?.loginId) {
+            try {
+                const Owner = require('../models/Owner');
+                await Owner.findOneAndUpdate(
+                    { loginId: visit.generatedCredentials.loginId },
+                    {
+                        ...(bankAccountHolderName !== undefined && { checkinAccountHolderName: bankAccountHolderName }),
+                        ...(bankAccountNumber !== undefined && { checkinBankAccountNumber: bankAccountNumber }),
+                        ...(bankIfscCode !== undefined && { checkinIfscCode: bankIfscCode }),
+                        ...(bankName !== undefined && { checkinBankName: bankName }),
+                        ...(bankBranchName !== undefined && { checkinBranchName: bankBranchName }),
+                        ...(bankUpiId !== undefined && { checkinUpiId: bankUpiId }),
+                        bankLockedByVisit: true
+                    }
+                );
+            } catch (_) {}
+        }
+
+        res.json({
+            success: true,
+            message: 'Visit updated successfully',
+            visit
+        });
+    } catch (error) {
+        console.error('Error updating visit:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error updating visit',
             error: error.message
         });
     }

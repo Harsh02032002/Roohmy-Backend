@@ -254,6 +254,8 @@ try {
     console.log('  ✓ websiteEnquiryRoutes (as /api/website-enquiry)');
     app.use('/api/website-enquiries', require('./routes/websiteEnquiryRoutes'));
     console.log('  ✓ websiteEnquiryRoutes (as /api/website-enquiries)');
+    app.use('/api/property-enquiries', require('./routes/propertyEnquiryRoutes'));
+    console.log('  ✓ propertyEnquiryRoutes');
     app.use('/api/approved-properties', require('./routes/approvedPropertiesRoutes'));
     console.log('  ✓ approvedPropertiesRoutes');
     app.use('/api/approvals', require('./routes/approvedPropertiesRoutes'));

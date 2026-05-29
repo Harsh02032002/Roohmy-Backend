@@ -539,4 +539,41 @@ async function sendDirectWhatsAppOtp(toPhone, otp) {
     return false;
 }
 
-module.exports = { sendCredentials, sendMail, sendWhatsAppMessage, sendDirectWhatsAppOtp };
+async function sendKycLinkEmail(toEmail, ownerName, propertyName, kycLink) {
+    if (!toEmail) return false;
+    const subject = `Complete Your KYC – ${propertyName || 'Your Property'} on RoomHy`;
+    const text = `Dear ${ownerName || 'Owner'},\n\nPlease complete your KYC for ${propertyName || 'your property'} by clicking the link below:\n\n${kycLink}\n\nIf you did not request this, please ignore this email.\n\nRoomHy Team`;
+    const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<style>
+  body{margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f5;}
+  .wrap{max-width:520px;margin:40px auto;padding:20px;}
+  .card{background:#fff;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.1);overflow:hidden;}
+  .hdr{background:linear-gradient(135deg,#667eea,#764ba2);padding:30px;text-align:center;}
+  .hdr h1{margin:0;color:#fff;font-size:26px;font-weight:700;}
+  .hdr p{margin:8px 0 0;color:rgba(255,255,255,.85);font-size:13px;}
+  .body{padding:30px;color:#333;}
+  .btn{display:block;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-align:center;padding:14px;text-decoration:none;border-radius:10px;margin:24px 0;font-size:15px;font-weight:600;}
+  .info{background:#f5f7fa;border-left:4px solid #667eea;border-radius:10px;padding:20px;margin:20px 0;}
+  .foot{background:#f8f9fa;padding:16px;text-align:center;border-top:1px solid #eee;}
+  .foot p{margin:0;color:#999;font-size:12px;}
+</style></head>
+<body>
+  <div class="wrap"><div class="card">
+    <div class="hdr"><h1>RoomHy</h1><p>Complete Your KYC</p></div>
+    <div class="body">
+      <p>Dear <strong>${ownerName || 'Owner'}</strong>,</p>
+      <p>Please complete the digital check-in / KYC process for your property <strong>${propertyName || 'Property'}</strong>.</p>
+      <div class="info">Click the button below to open the KYC form and fill in the required details.</div>
+      <a href="${kycLink}" class="btn">Complete KYC Now</a>
+      <p style="font-size:13px;color:#666;">If the button doesn't work, copy and paste this link into your browser:<br><a href="${kycLink}" style="word-break:break-all;">${kycLink}</a></p>
+    </div>
+    <div class="foot"><p>&copy; 2025 RoomHy. All rights reserved. | support@roomhy.com</p></div>
+  </div></div>
+</body>
+</html>`;
+    return sendMail(toEmail, subject, text, html);
+}
+
+module.exports = { sendCredentials, sendMail, sendWhatsAppMessage, sendDirectWhatsAppOtp, sendKycLinkEmail };
