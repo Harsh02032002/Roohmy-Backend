@@ -349,6 +349,8 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+
+
 // Cache management endpoints (admin only - add auth later)
 app.get('/api/admin/cache-stats', (req, res) => {
     res.json({

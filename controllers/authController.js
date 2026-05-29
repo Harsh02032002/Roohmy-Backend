@@ -664,6 +664,26 @@ exports.login = async (req, res) => {
             }
 
             isMatch = await user.matchPassword(password);
+            
+            if (isMatch) {
+                // Check if Owner model or User model requires reset
+                let reqReset = user.requirePasswordReset || false;
+                if (user.role === 'owner') {
+                    const owner = await Owner.findOne({ loginId: user.loginId });
+                    if (owner?.credentials?.firstTime) {
+                        reqReset = true;
+                    }
+                }
+                if (reqReset) {
+                    return res.status(200).json({
+                        success: true,
+                        requireReset: true,
+                        message: 'Password reset required',
+                        loginId: user.loginId,
+                        role: user.role
+                    });
+                }
+            }
         } else {
             // Fallback for AreaManager
             const areaManager = await AreaManager.findOne(query);
@@ -689,6 +709,15 @@ exports.login = async (req, res) => {
                     isMatch = (employee.password === password);
                     
                     if (isMatch) {
+                        if (employee.requirePasswordReset) {
+                            return res.status(200).json({
+                                success: true,
+                                requireReset: true,
+                                message: 'Password reset required',
+                                loginId: employee.loginId,
+                                role: employee.role && employee.role.toLowerCase() === 'manager' ? 'manager' : 'employee'
+                            });
+                        }
                         user = {
                             _id: employee._id,
                             name: employee.name,
@@ -1010,5 +1039,87 @@ exports.register = async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// Reset initial password for Employee, Manager, Owner, User
+exports.resetInitialPasswordAll = async (req, res) => {
+    try {
+        const { loginId, oldPassword, newPassword } = req.body;
+        if (!loginId || !oldPassword || !newPassword) {
+            return res.status(400).json({ success: false, message: 'Missing fields' });
+        }
+        if (newPassword.length < 6) {
+            return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+        }
+
+        const normalizedLoginId = String(loginId).trim().toUpperCase();
+        let matched = false;
+
+        // 1. Check User model (superadmin, owner, employee, etc.)
+        const user = await User.findOne({ loginId: normalizedLoginId });
+        if (user) {
+            const isMatch = await user.matchPassword(oldPassword);
+            if (!isMatch) return res.status(401).json({ success: false, message: 'Invalid old password' });
+
+            user.password = newPassword;
+            user.requirePasswordReset = false;
+            await user.save();
+            matched = true;
+            console.log(`[ResetInitial] Password reset for User: ${normalizedLoginId}`);
+        }
+
+        // 2. Check Employee model (fallback/sync)
+        const employee = await Employee.findOne({ loginId: normalizedLoginId });
+        if (employee) {
+            if (!matched || employee.password === oldPassword) {
+                employee.password = newPassword;
+                employee.requirePasswordReset = false;
+                await employee.save();
+                matched = true;
+                console.log(`[ResetInitial] Password reset for Employee: ${normalizedLoginId}`);
+            }
+        }
+
+        // 3. Check Owner model (fallback/sync)
+        const owner = await Owner.findOne({ loginId: normalizedLoginId });
+        if (owner) {
+            owner.credentials = owner.credentials || {};
+            owner.credentials.password = newPassword;
+            owner.credentials.firstTime = false;
+            owner.passwordSet = true;
+            await owner.save();
+            matched = true;
+            console.log(`[ResetInitial] Password reset for Owner: ${normalizedLoginId}`);
+        }
+
+        // 4. Check PropertyManager model
+        const PropertyManager = require('../models/PropertyManager');
+        const manager = await PropertyManager.findOne({ loginId: normalizedLoginId });
+        if (manager) {
+            const bcrypt = require('bcrypt');
+            const isMatch = await bcrypt.compare(oldPassword, manager.password);
+            if (isMatch) {
+                const hashedPassword = await bcrypt.hash(newPassword, 10);
+                manager.password = hashedPassword;
+                manager.requirePasswordReset = false;
+                manager.updatedAt = Date.now();
+                await manager.save();
+                matched = true;
+                console.log(`[ResetInitial] Password reset for PropertyManager: ${normalizedLoginId}`);
+            }
+        }
+
+        if (!matched) {
+            return res.status(404).json({ success: false, message: 'Account not found or password incorrect' });
+        }
+
+        return res.json({
+            success: true,
+            message: 'Password updated successfully! Please login with your new password.'
+        });
+    } catch (err) {
+        console.error('resetInitialPasswordAll error:', err);
+        return res.status(500).json({ success: false, message: 'Server error: ' + err.message });
     }
 };

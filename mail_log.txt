@@ -463,3 +463,10 @@
 [2026-05-29T14:53:17.771Z] SUCCESS: Email to h49499767@gmail.com via SMTP
 [DEBUG] Attempting WhatsApp copy for h49499767@gmail.com...
 [2026-05-29T14:53:18.722Z] WHATSAPP: Delivered to 1 recipients
+[DEBUG] sendMail start. hasSmtp: true, hasMailjet: true
+[DEBUG] Attempting Mailjet API... (User length: 32)
+[2026-05-29T19:18:28.787Z] FAILED: Mailjet API rejected the request (Check keys)
+[DEBUG] Trying SMTP with User: helloroomhy@gmail.com, Pass: gon...omu
+[2026-05-29T19:18:33.575Z] SUCCESS: Email to h49499767@gmail.com via SMTP
+[DEBUG] Attempting WhatsApp copy for h49499767@gmail.com...
+[2026-05-29T19:18:34.520Z] WHATSAPP: Delivered to 1 recipients

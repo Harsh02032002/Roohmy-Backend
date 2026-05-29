@@ -22,6 +22,7 @@ router.post('/register', authController.register);
 router.get('/me', protect, authController.me);
 
 // Owner specific flows (temp password verification and set new password)
+router.post('/reset-initial-password', authController.resetInitialPasswordAll);
 router.post('/owner/verify-temp', authController.verifyOwnerTemp);
 router.post('/owner/set-password', authController.setOwnerPassword);
 router.post('/owner/forgot-password/request-otp', otpLimiter, captchaProtection({ required: false }), authController.ownerForgotPasswordRequestOTP);

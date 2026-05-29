@@ -167,7 +167,8 @@ router.post('/', async (req, res) => {
                 locationCode,
                 permissions,
                 parentLoginId,
-                photoDataUrl
+                photoDataUrl,
+                requirePasswordReset: true
             });
         } catch (dbErr) {
             if (dbErr && dbErr.code === 11000) {
@@ -233,6 +234,10 @@ router.patch('/:loginId', async (req, res) => {
     try {
         const { loginId } = req.params;
         const updates = req.body;
+
+        if (updates.password) {
+            updates.requirePasswordReset = true;
+        }
 
         const employee = await Employee.findOneAndUpdate(
             { loginId },
