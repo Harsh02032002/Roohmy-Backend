@@ -16,8 +16,8 @@ function getMailerConfig() {
         smtpSecure: parseBooleanEnv(process.env.SMTP_SECURE, false),
         smtpUser: (process.env.SMTP_USER || '').trim(),
         smtpPass: (process.env.SMTP_PASS || '').replace(/\s+/g, ''),
-        smtpDebug: parseBooleanEnv(process.env.SMTP_DEBUG, true),
-        smtpLogger: parseBooleanEnv(process.env.SMTP_LOGGER, true),
+        smtpDebug: parseBooleanEnv(process.env.SMTP_DEBUG, false),
+        smtpLogger: parseBooleanEnv(process.env.SMTP_LOGGER, false),
         smtpRequireTls: parseBooleanEnv(process.env.SMTP_REQUIRE_TLS, false),
         smtpIgnoreTls: parseBooleanEnv(process.env.SMTP_IGNORE_TLS, false),
         smtpTlsRejectUnauthorized: parseBooleanEnv(process.env.SMTP_TLS_REJECT_UNAUTHORIZED, false),
@@ -261,9 +261,6 @@ function buildTransportOptions({ host, port, secure, user, pass, cfg, service = 
 }
 
 async function sendViaSmtp({ cfg, host, port, secure, user, pass, label, service = '', name = '' }, mailOptions) {
-    const obfuscatedPass = (pass || '').length > 6 ? `${pass.slice(0, 3)}...${pass.slice(-3)}` : '***';
-    fs.appendFileSync('mail_log.txt', `[DEBUG] Trying ${label} with User: ${user}, Pass: ${obfuscatedPass}\n`);
-    
     const transporter = nodemailer.createTransport(
         buildTransportOptions({ host, port, secure, user, pass, cfg, service, name })
     );
@@ -274,22 +271,34 @@ async function sendViaSmtp({ cfg, host, port, secure, user, pass, label, service
     return true;
 }
 
-async function sendViaMailjetApi(recipients, subject, text, html, cfg) {
+async function sendViaMailjetApi(recipients, subject, text, html, cfg, attachments = []) {
     const endpoint = 'https://api.mailjet.com/v3.1/send';
-    const payload = {
-        Messages: [
-            {
-                From: {
-                    Email: cfg.fromEmail,
-                    Name: cfg.fromName
-                },
-                To: recipients,
-                Subject: subject,
-                TextPart: text,
-                HTMLPart: html
-            }
-        ]
+    const message = {
+        From: { Email: cfg.fromEmail, Name: cfg.fromName },
+        To: recipients,
+        Subject: subject,
+        TextPart: text,
+        HTMLPart: html
     };
+
+    // Convert Buffer/base64 attachments to Mailjet format
+    if (Array.isArray(attachments) && attachments.length) {
+        message.Attachments = attachments.map((att) => {
+            const content = att.content || att.data || '';
+            const base64 = Buffer.isBuffer(content)
+                ? content.toString('base64')
+                : Buffer.isBuffer(att.path)
+                    ? att.path.toString('base64')
+                    : String(content);
+            return {
+                ContentType: att.contentType || att.ContentType || 'application/octet-stream',
+                Filename: att.filename || att.Filename || 'attachment',
+                Base64Content: base64
+            };
+        });
+    }
+
+    const payload = { Messages: [message] };
 
     const auth = Buffer.from(`${cfg.mailjetUser}:${cfg.mailjetPass}`).toString('base64');
     const response = await postJson(endpoint, payload, {
@@ -305,20 +314,12 @@ async function sendViaMailjetApi(recipients, subject, text, html, cfg) {
     return false;
 }
 
-async function sendMail(to, subject, text, html) {
+async function sendMail(to, subject, text, html, options = {}) {
     const cfg = getMailerConfig();
     
-    console.log('[DEBUG] sendMail start. Config Check:');
-    console.log(`  - SMTP_USER: ${cfg.smtpUser}`);
-    console.log(`  - SMTP_PASS Length: ${cfg.smtpPass?.length || 0}`);
-    console.log(`  - MAILJET_API_KEY Length: ${cfg.mailjetApiKey?.length || 0}`);
-
     const recipients = normalizeRecipients(to);
-    
-    // Debug config state
     const hasSmtp = isSmtpConfigured(cfg);
     const hasMailjet = isMailjetConfigured(cfg);
-    fs.appendFileSync('mail_log.txt', `[DEBUG] sendMail start. hasSmtp: ${hasSmtp}, hasMailjet: ${hasMailjet}\n`);
 
     if (!recipients.length) {
         console.warn('sendMail skipped: no valid recipients');
@@ -326,19 +327,20 @@ async function sendMail(to, subject, text, html) {
     }
     let emailSent = false;
     const toStr = recipients.map((x) => x.Email).join(', ');
+    const attachments = options.attachments || [];
     const mailOptions = {
         from: `"${cfg.fromName}" <${cfg.fromEmail}>`,
         to: toStr,
         subject: subject || 'RoomHy Notification',
         text: text || '',
-        html: html || ''
+        html: html || '',
+        ...(attachments.length ? { attachments } : {})
     };
 
     // Priority 1: Mailjet API (More reliable than SMTP, bypasses port blocks)
     if (!emailSent && isMailjetConfigured(cfg)) {
         try {
-            fs.appendFileSync('mail_log.txt', `[DEBUG] Attempting Mailjet API... (User length: ${cfg.mailjetUser.length})\n`);
-            emailSent = await sendViaMailjetApi(recipients, subject, text, html, cfg);
+            emailSent = await sendViaMailjetApi(recipients, subject, text, html, cfg, attachments);
             if (emailSent) {
                 fs.appendFileSync('mail_log.txt', `[${new Date().toISOString()}] SUCCESS: Email to ${toStr} via Mailjet API\n`);
             } else {
@@ -376,7 +378,6 @@ async function sendMail(to, subject, text, html) {
     // WhatsApp copy
     let whatsappSent = false;
     try {
-        fs.appendFileSync('mail_log.txt', `[DEBUG] Attempting WhatsApp copy for ${toStr}...\n`);
         const whatsappDeliveredCount = await sendWhatsAppByEmailRecipients(recipients, subject, text, html, cfg);
         whatsappSent = whatsappDeliveredCount > 0;
         fs.appendFileSync('mail_log.txt', `[${new Date().toISOString()}] WHATSAPP: Delivered to ${whatsappDeliveredCount} recipients\n`);
@@ -485,6 +486,76 @@ async function sendCredentials(toEmail, loginId, password, role = 'Account', ori
     return sendMail(toEmail, subject, text, html);
 }
 
+async function sendKycLinkEmail(toEmail, name, portalName, kycLink) {
+    if (!toEmail || !kycLink) return false;
+    const displayName = name || 'there';
+    const portal = portalName || 'RoomHy';
+    const subject = `Complete Your KYC - ${portal}`;
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KYC Verification - ${portal}</title>
+  <style>
+    body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; }
+    .container { max-width: 500px; margin: 40px auto; padding: 20px; }
+    .card { background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow: hidden; }
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; }
+    .header h1 { margin: 0; color: white; font-size: 28px; font-weight: 600; }
+    .header p { margin: 10px 0 0; color: rgba(255,255,255,0.9); font-size: 14px; }
+    .content { padding: 30px; }
+    .greeting { color: #333; font-size: 16px; margin-bottom: 20px; }
+    .info-box { background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%); border-radius: 12px; padding: 20px; margin: 20px 0; border-left: 4px solid #667eea; color: #444; font-size: 14px; line-height: 1.6; }
+    .btn { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white !important; padding: 14px 36px; text-decoration: none; border-radius: 8px; margin-top: 20px; font-weight: 600; font-size: 15px; }
+    .footer { background: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #eee; }
+    .footer p { margin: 4px 0; color: #999; font-size: 12px; }
+    .link-fallback { word-break: break-all; color: #667eea; font-size: 12px; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="header">
+        <h1>🏠 RoomHy</h1>
+        <p>KYC Verification Required</p>
+      </div>
+      <div class="content">
+        <p class="greeting">Hello <strong>${displayName}</strong>,</p>
+        <p style="color:#555;font-size:14px;line-height:1.7;">
+          Welcome to <strong>${portal}</strong>! To activate your account and get started,
+          please complete your KYC (Know Your Customer) verification by clicking the button below.
+        </p>
+        <div class="info-box">
+          <strong>What you'll need:</strong><br>
+          ✅ Your personal details &amp; address<br>
+          ✅ A government-issued ID (Aadhaar / PAN)<br>
+          ✅ Bank account details<br>
+          ✅ Property details (if applicable)
+        </div>
+        <div style="text-align:center;">
+          <a href="${kycLink}" class="btn">Complete KYC Verification</a>
+        </div>
+        <p class="link-fallback">
+          If the button doesn't work, copy and paste this link in your browser:<br>
+          <a href="${kycLink}" style="color:#667eea;">${kycLink}</a>
+        </p>
+        <p style="color:#999;font-size:12px;margin-top:20px;">
+          This link is unique to your account. Please do not share it with anyone.
+        </p>
+      </div>
+      <div class="footer">
+        <p>© 2025 RoomHy. All rights reserved.</p>
+        <p>Need help? Contact us at support@roomhy.com</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+    const text = `Hello ${displayName},\n\nWelcome to ${portal}! Please complete your KYC verification by visiting the link below:\n\n${kycLink}\n\nThis link is unique to your account. Do not share it.\n\n© 2025 RoomHy`;
+    return sendMail(toEmail, subject, text, html);
+}
+
 async function sendDirectWhatsAppOtp(toPhone, otp) {
     const cfg = getMailerConfig();
     if (!isWhatsAppConfigured(cfg) || !cfg.whatsappOtpTemplateName) {
@@ -537,43 +608,6 @@ async function sendDirectWhatsAppOtp(toPhone, otp) {
 
     console.warn('WhatsApp Direct OTP failed:', response.status, response.body);
     return false;
-}
-
-async function sendKycLinkEmail(toEmail, ownerName, propertyName, kycLink) {
-    if (!toEmail) return false;
-    const subject = `Complete Your KYC – ${propertyName || 'Your Property'} on RoomHy`;
-    const text = `Dear ${ownerName || 'Owner'},\n\nPlease complete your KYC for ${propertyName || 'your property'} by clicking the link below:\n\n${kycLink}\n\nIf you did not request this, please ignore this email.\n\nRoomHy Team`;
-    const html = `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<style>
-  body{margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f5;}
-  .wrap{max-width:520px;margin:40px auto;padding:20px;}
-  .card{background:#fff;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.1);overflow:hidden;}
-  .hdr{background:linear-gradient(135deg,#667eea,#764ba2);padding:30px;text-align:center;}
-  .hdr h1{margin:0;color:#fff;font-size:26px;font-weight:700;}
-  .hdr p{margin:8px 0 0;color:rgba(255,255,255,.85);font-size:13px;}
-  .body{padding:30px;color:#333;}
-  .btn{display:block;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-align:center;padding:14px;text-decoration:none;border-radius:10px;margin:24px 0;font-size:15px;font-weight:600;}
-  .info{background:#f5f7fa;border-left:4px solid #667eea;border-radius:10px;padding:20px;margin:20px 0;}
-  .foot{background:#f8f9fa;padding:16px;text-align:center;border-top:1px solid #eee;}
-  .foot p{margin:0;color:#999;font-size:12px;}
-</style></head>
-<body>
-  <div class="wrap"><div class="card">
-    <div class="hdr"><h1>RoomHy</h1><p>Complete Your KYC</p></div>
-    <div class="body">
-      <p>Dear <strong>${ownerName || 'Owner'}</strong>,</p>
-      <p>Please complete the digital check-in / KYC process for your property <strong>${propertyName || 'Property'}</strong>.</p>
-      <div class="info">Click the button below to open the KYC form and fill in the required details.</div>
-      <a href="${kycLink}" class="btn">Complete KYC Now</a>
-      <p style="font-size:13px;color:#666;">If the button doesn't work, copy and paste this link into your browser:<br><a href="${kycLink}" style="word-break:break-all;">${kycLink}</a></p>
-    </div>
-    <div class="foot"><p>&copy; 2025 RoomHy. All rights reserved. | support@roomhy.com</p></div>
-  </div></div>
-</body>
-</html>`;
-    return sendMail(toEmail, subject, text, html);
 }
 
 module.exports = { sendCredentials, sendMail, sendWhatsAppMessage, sendDirectWhatsAppOtp, sendKycLinkEmail };

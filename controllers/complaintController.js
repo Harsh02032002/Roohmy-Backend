@@ -17,9 +17,32 @@ exports.getTenantComplaints = async (req, res) => {
 exports.getOwnerComplaints = async (req, res) => {
     try {
         const { ownerLoginId } = req.params;
-        const complaints = await Complaint.find({ 
-            ownerLoginId: { $regex: new RegExp('^' + ownerLoginId + '$', 'i') } 
-        }).sort({ createdAt: -1 });
+        const escapedId = ownerLoginId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const ownerRegex = new RegExp('^' + escapedId + '$', 'i');
+
+        // Primary: complaints tagged with this owner's loginId
+        const byOwner = await Complaint.find({ ownerLoginId: ownerRegex }).sort({ createdAt: -1 });
+
+        // Fallback: complaints from this owner's tenants that lack ownerLoginId
+        // (handles older complaints where ownerLoginId wasn't stored)
+        const Tenant = require('../models/Tenant');
+        const ownerTenants = await Tenant.find({ ownerLoginId: ownerRegex }, '_id');
+        const tenantIds = ownerTenants.map(t => String(t._id));
+
+        let complaints = byOwner;
+        if (tenantIds.length > 0) {
+            const byTenant = await Complaint.find({
+                tenantId: { $in: tenantIds },
+                $or: [{ ownerLoginId: { $exists: false } }, { ownerLoginId: '' }, { ownerLoginId: null }]
+            }).sort({ createdAt: -1 });
+
+            if (byTenant.length > 0) {
+                const seen = new Set(byOwner.map(c => String(c._id)));
+                const extra = byTenant.filter(c => !seen.has(String(c._id)));
+                complaints = [...byOwner, ...extra].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            }
+        }
+
         res.json({ success: true, complaints });
     } catch (err) {
         console.error("Get Owner Complaints Error:", err);
@@ -52,15 +75,20 @@ exports.createComplaint = async (req, res) => {
 
         // Auto-resolve ownerLoginId if missing
         if ((!ownerLoginId || ownerLoginId.trim() === '') && tenantId) {
-             const Tenant = require('../models/Tenant');
-             const Property = require('../models/Property');
-             const t = await Tenant.findById(tenantId);
-             if (t && t.propertyId) {
-                  const p = await Property.findById(t.propertyId);
-                  if (p && p.ownerLoginId) {
-                      ownerLoginId = p.ownerLoginId;
-                  }
-             }
+            const Tenant = require('../models/Tenant');
+            const t = await Tenant.findById(tenantId);
+            if (t) {
+                if (t.ownerLoginId) {
+                    // Fastest path: ownerLoginId stored directly on tenant
+                    ownerLoginId = t.ownerLoginId;
+                } else if (t.propertyId) {
+                    const Property = require('../models/Property');
+                    const p = await Property.findById(t.propertyId);
+                    if (p && p.ownerLoginId) {
+                        ownerLoginId = p.ownerLoginId;
+                    }
+                }
+            }
         }
 
         const complaint = new Complaint({

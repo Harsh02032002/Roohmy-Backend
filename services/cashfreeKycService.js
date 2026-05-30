@@ -142,7 +142,13 @@ async function verifyAadhaarOtp(referenceId, otp) {
     return data;
 }
 
+// Cashfree OCR integration pending — always skips for now
+async function aadhaarOcr(_base64Image) {
+    return { sandbox: true };
+}
+
 module.exports = {
     requestAadhaarOtp,
-    verifyAadhaarOtp
+    verifyAadhaarOtp,
+    aadhaarOcr
 };

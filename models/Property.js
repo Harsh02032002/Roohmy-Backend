@@ -162,4 +162,6 @@ PropertySchema.pre('save', function(next) {
   next();
 });
 
+PropertySchema.index({ ownerLoginId: 1 });
+
 module.exports = mongoose.models.Property || mongoose.model('Property', PropertySchema);

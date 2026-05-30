@@ -11,8 +11,9 @@ const path = require('path');
 // replace the image file or update LOGO_PATHS below.
 // ======================================================
 const LOGO_PATHS = [
-    path.join(__dirname, '../../react-app/public/image/website/roomhy.png'),
-    path.join(__dirname, '../../react-app/public/website/images/logoroomhy.jpg')
+    path.join(__dirname, '../../Roohmy-Frontend/public/website/images/roomhy.png'),
+    path.join(__dirname, '../../Roohmy-Frontend/public/website/images/logoroomhy.jpg'),
+    path.join(__dirname, '../public/website/images/roomhy.png')
 ];
 
 // ======================================================
@@ -361,6 +362,7 @@ function generateAgreementPdfBuffer({
             tableRow('Type of accommodation', v(accommodationType));
             tableRow('Monthly License Fee/Rent', Rs(rentAmount));
             tableRow('License Start Date', v(licenseStartDate));
+            tableRow('License Duration', v(duration));
             tableRow('License End Date', v(licenseEndDate));
             tableRow('License Fee Due Date', v(licenseFeeDueDate));
             tableRow('Move Out Charges', v(moveOutCharges));
@@ -435,6 +437,8 @@ function generateAgreementPdfBuffer({
 
             doc.font('Helvetica-Bold').fontSize(10).fillColor('#000000')
                .text('Date:', rightX, dateLineY);
+            doc.font('Helvetica').fontSize(10).fillColor('#000000')
+               .text(today, rightX + 44, dateLineY);
             doc.moveTo(rightX + 40, dateLineY + 14).lineTo(rightX + halfPW - 10, dateLineY + 14)
                .lineWidth(0.5).strokeColor('#000000').stroke();
 

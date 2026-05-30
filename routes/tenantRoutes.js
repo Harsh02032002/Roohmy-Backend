@@ -105,6 +105,26 @@ router.post('/checkin/approve', async (req, res) => {
     }
 });
 
+// Get all moveout requests for a specific owner's tenants
+router.get('/moveout/owner/:ownerId', async (req, res) => {
+    try {
+        const ownerLoginId = String(req.params.ownerId).toUpperCase();
+
+        // Find tenants belonging to this owner who have submitted a moveout request
+        const tenants = await Tenant.find({
+            ownerLoginId,
+            'moveoutRequest.status': { $in: ['pending', 'approved', 'rejected'] }
+        })
+        .populate('property', 'title roomType locationCode ownerLoginId')
+        .sort({ 'moveoutRequest.submittedAt': -1 });
+
+        res.json({ success: true, requests: tenants });
+    } catch (err) {
+        console.error('Get owner moveout requests error:', err);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 // Move-out notice endpoints
 router.post('/moveout', async (req, res) => {
     try {

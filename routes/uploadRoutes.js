@@ -27,20 +27,20 @@ router.post('/upload-profile-photo', upload.single('profilePhoto'), async (req, 
   }
 });
 
-// POST /api/upload - Generic image upload
+// POST /api/upload - Generic image/video upload
 router.post('/upload', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
-    const result = await cloudinary.uploader.upload_stream({
-      folder: 'roomhy/categories',
-      resource_type: 'image',
+    const stream = cloudinary.uploader.upload_stream({
+      folder: 'roomhy/rooms',
+      resource_type: 'auto',
     }, (error, result) => {
       if (error) return res.status(500).json({ error: error.message });
       return res.json({ url: result.secure_url });
     });
-    result.end(req.file.buffer);
+    stream.end(req.file.buffer);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

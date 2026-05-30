@@ -2,6 +2,7 @@ const express = require('express');
 const City = require('../models/City');
 const Area = require('../models/Area');
 const ApprovedProperty = require('../models/ApprovedProperty');
+const Tenant = require('../models/Tenant');
 const {
     clearSession,
     getSession,
@@ -20,6 +21,7 @@ const WHATSAPP_API_VERSION = process.env.WHATSAPP_API_VERSION || 'v21.0';
 const BOT_ENABLED = String(process.env.WHATSAPP_BOT_ENABLED || 'true').toLowerCase() !== 'false';
 const WEBSITE_URL = (process.env.WEBSITE_URL || 'https://roomhy.com').replace(/\/+$/, '');
 const APP_URL = (process.env.APP_URL || 'https://app.roomhy.com').replace(/\/+$/, '');
+const DIGITAL_CHECKIN_URL = (process.env.DIGITAL_CHECKIN_URL || process.env.WEBSITE_URL || 'https://roomhy.com').replace(/\/+$/, '');
 const BOT_BRAND_NAME = process.env.WHATSAPP_BOT_BRAND_NAME || 'RoomHy';
 const BOT_SUPPORT_PHONE = process.env.WHATSAPP_BOT_SUPPORT_PHONE || '+91 00000 00000';
 const BOT_SUPPORT_EMAIL = process.env.WHATSAPP_BOT_SUPPORT_EMAIL || 'support@roomhy.com';
@@ -400,6 +402,171 @@ async function sendBookingConfirmationMenu(to, phone) {
     }
 }
 
+async function findTenantByPhone(phone) {
+    try {
+        const last10 = String(phone || '').replace(/\D/g, '').slice(-10);
+        return await Tenant.findOne({
+            $or: [
+                { phone: last10 },
+                { phone: `91${last10}` },
+                { phone: phone }
+            ]
+        }).select('loginId name kycStatus agreementSigned status').lean();
+    } catch (_) {
+        return null;
+    }
+}
+
+async function sendDigitalCheckinLink(to, phone) {
+    const tenant = await findTenantByPhone(phone);
+    if (tenant?.loginId) {
+        const checkinUrl = `${DIGITAL_CHECKIN_URL}/digital-checkin/tenantkyc?loginId=${encodeURIComponent(tenant.loginId)}`;
+        const sent = await sendTemplateMessage(
+            to,
+            'roomhy_digital_checkin_link',
+            [tenant.name || 'Tenant', checkinUrl],
+            { skipPhoneNormalization: true }
+        );
+        if (!sent) {
+            await sendTextMessage(
+                to,
+                compactText([
+                    `Hi ${tenant.name || 'Tenant'}, start your Digital Check-in here:`,
+                    checkinUrl,
+                    '',
+                    `Login ID: ${tenant.loginId}`
+                ])
+            );
+        }
+        return;
+    }
+    await sendTextMessage(
+        to,
+        compactText([
+            `Start your Digital Check-in at:`,
+            `${DIGITAL_CHECKIN_URL}/digital-checkin/tenantkyc`,
+            '',
+            'You will need the Login ID sent in your booking confirmation email.'
+        ])
+    );
+}
+
+async function sendKycLink(to, phone) {
+    const tenant = await findTenantByPhone(phone);
+    if (tenant?.loginId) {
+        if (tenant.kycStatus === 'verified') {
+            await sendTextMessage(
+                to,
+                `Hi ${tenant.name || 'Tenant'}, your KYC is already verified ✅. Reply *agreement* to sign your rental agreement.`
+            );
+            return;
+        }
+        const kycUrl = `${DIGITAL_CHECKIN_URL}/digital-checkin/tenantkyc?loginId=${encodeURIComponent(tenant.loginId)}`;
+        const sent = await sendTemplateMessage(
+            to,
+            'roomhy_kyc_link',
+            [tenant.name || 'Tenant', kycUrl],
+            { skipPhoneNormalization: true }
+        );
+        if (!sent) {
+            await sendTextMessage(
+                to,
+                compactText([
+                    `Hi ${tenant.name || 'Tenant'}, complete your Aadhaar KYC here:`,
+                    kycUrl
+                ])
+            );
+        }
+        return;
+    }
+    await sendTextMessage(
+        to,
+        compactText([
+            'Complete your KYC verification at:',
+            `${DIGITAL_CHECKIN_URL}/digital-checkin/tenantkyc`,
+            '',
+            'Enter your Login ID to proceed.'
+        ])
+    );
+}
+
+async function sendAgreementLink(to, phone) {
+    const tenant = await findTenantByPhone(phone);
+    if (tenant?.loginId) {
+        if (tenant.agreementSigned) {
+            await sendTextMessage(
+                to,
+                `Hi ${tenant.name || 'Tenant'}, your agreement is already signed ✅. Welcome to ${BOT_BRAND_NAME}!`
+            );
+            return;
+        }
+        if (tenant.kycStatus !== 'verified') {
+            await sendTextMessage(
+                to,
+                `Hi ${tenant.name || 'Tenant'}, please complete your KYC first. Reply *kyc* to get the verification link.`
+            );
+            return;
+        }
+        const agreementUrl = `${DIGITAL_CHECKIN_URL}/digital-checkin/tenantagreement?loginId=${encodeURIComponent(tenant.loginId)}`;
+        const sent = await sendTemplateMessage(
+            to,
+            'roomhy_agreement_link',
+            [tenant.name || 'Tenant', agreementUrl],
+            { skipPhoneNormalization: true }
+        );
+        if (!sent) {
+            await sendTextMessage(
+                to,
+                compactText([
+                    `Hi ${tenant.name || 'Tenant'}, sign your rental agreement here:`,
+                    agreementUrl
+                ])
+            );
+        }
+        return;
+    }
+    await sendTextMessage(
+        to,
+        compactText([
+            'Sign your rental agreement at:',
+            `${DIGITAL_CHECKIN_URL}/digital-checkin/tenantagreement`,
+            '',
+            'Enter your Login ID to proceed.'
+        ])
+    );
+}
+
+async function sendCheckinStatus(to, phone) {
+    const tenant = await findTenantByPhone(phone);
+    if (tenant?.loginId) {
+        const kycOk = tenant.kycStatus === 'verified';
+        const agrOk = Boolean(tenant.agreementSigned);
+        const lines = [
+            `Hi ${tenant.name || 'Tenant'}, your check-in status:`,
+            `Login ID: ${tenant.loginId}`,
+            `KYC: ${kycOk ? '✅ Verified' : '⏳ Pending'}`,
+            `Agreement: ${agrOk ? '✅ Signed' : '⏳ Pending'}`,
+            `Account: ${tenant.status || 'pending'}`
+        ];
+        if (!kycOk) {
+            lines.push('', 'Reply *kyc* to complete Aadhaar verification.');
+        } else if (!agrOk) {
+            lines.push('', 'Reply *agreement* to sign your rental agreement.');
+        } else {
+            lines.push('', `Check-in complete. Welcome to ${BOT_BRAND_NAME}! 🎉`);
+        }
+        await sendTextMessage(to, compactText(lines));
+        return;
+    }
+    await sendTextMessage(
+        to,
+        compactText([
+            'No tenant account found for this number.',
+            `Contact support: ${BOT_SUPPORT_EMAIL} | ${BOT_SUPPORT_PHONE}`
+        ])
+    );
+}
+
 async function sendRefundLink(to) {
     const sent = await sendTemplateMessage(
         to,
@@ -527,6 +694,26 @@ async function handleIncomingMessage(senderPhone, incomingText) {
         return;
     }
 
+    if (['checkin', 'check in', 'digital checkin', 'digital check in', 'start checkin'].includes(text)) {
+        await sendDigitalCheckinLink(senderPhone, senderPhone);
+        return;
+    }
+
+    if (['kyc', 'verify kyc', 'aadhaar', 'aadhar', 'aadhaar kyc', 'aadhar kyc', 'kyc verify'].includes(text)) {
+        await sendKycLink(senderPhone, senderPhone);
+        return;
+    }
+
+    if (['agreement', 'sign agreement', 'rental agreement', 'sign', 'esign'].includes(text)) {
+        await sendAgreementLink(senderPhone, senderPhone);
+        return;
+    }
+
+    if (['status', 'my status', 'checkin status', 'kyc status', 'my kyc', 'my checkin'].includes(text)) {
+        await sendCheckinStatus(senderPhone, senderPhone);
+        return;
+    }
+
     if (['booking confirmed', 'booking confirm', 'confirmed booking'].includes(text)) {
         await sendBookingConfirmationMenu(senderPhone, senderPhone);
         return;
@@ -629,6 +816,18 @@ async function handleButtonReply(senderPhone, buttonId) {
             return;
         case 'booking_alternative':
             await sendAlternativePropertyFlow(senderPhone, senderPhone);
+            return;
+        case 'go_checkin':
+            await sendDigitalCheckinLink(senderPhone, senderPhone);
+            return;
+        case 'go_kyc':
+            await sendKycLink(senderPhone, senderPhone);
+            return;
+        case 'go_agreement':
+            await sendAgreementLink(senderPhone, senderPhone);
+            return;
+        case 'go_status':
+            await sendCheckinStatus(senderPhone, senderPhone);
             return;
         default:
             await sendMainMenu(senderPhone);

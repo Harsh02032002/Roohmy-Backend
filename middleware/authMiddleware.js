@@ -28,6 +28,8 @@ exports.protect = async (req, res, next) => {
         }
 
         if (!user) return res.status(401).json({ message: 'Not authorized, user not found' });
+        // Normalize 'propertyowner' → 'owner' so all role checks are consistent
+        if (user.role === 'propertyowner') user.role = 'owner';
         req.user = user;
         next();
     } catch (err) {

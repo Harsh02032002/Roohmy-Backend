@@ -2,7 +2,7 @@
 exports.getOwnerProperties = async (req, res) => {
     try {
         const ownerLoginId = req.params.loginId;
-        const properties = await Property.find({ ownerLoginId });
+        const properties = await Property.find({ ownerLoginId }).lean();
         res.json({ properties });
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -13,9 +13,9 @@ exports.getOwnerProperties = async (req, res) => {
 exports.getOwnerRooms = async (req, res) => {
     try {
         const ownerLoginId = req.params.loginId;
-        const properties = await Property.find({ ownerLoginId });
+        const properties = await Property.find({ ownerLoginId }).lean();
         const propertyIds = properties.map(p => p._id);
-        const rooms = await require('../models/Room').find({ property: { $in: propertyIds } });
+        const rooms = await require('../models/Room').find({ property: { $in: propertyIds } }).lean();
         res.json({ rooms });
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -26,9 +26,9 @@ exports.getOwnerRooms = async (req, res) => {
 exports.getOwnerTenants = async (req, res) => {
     try {
         const ownerLoginId = req.params.loginId;
-        const properties = await Property.find({ ownerLoginId });
+        const properties = await Property.find({ ownerLoginId }).lean();
         const propertyIds = properties.map(p => p._id);
-        const tenants = await require('../models/Tenant').find({ property: { $in: propertyIds } });
+        const tenants = await require('../models/Tenant').find({ property: { $in: propertyIds } }).lean();
         res.json({ tenants });
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -39,7 +39,7 @@ exports.getOwnerTenants = async (req, res) => {
 exports.getOwnerRent = async (req, res) => {
     try {
         const ownerLoginId = req.params.loginId;
-        const enquiries = await require('../models/Enquiry').find({ ownerLoginId, status: { $in: ['accepted', 'approved'] } });
+        const enquiries = await require('../models/Enquiry').find({ ownerLoginId, status: { $in: ['accepted', 'approved'] } }).lean();
         const totalRent = enquiries.reduce((sum, e) => sum + (e.paidAmount || 0), 0);
         res.json({ totalRent });
     } catch (err) {
@@ -233,13 +233,11 @@ exports.updateOwnerKyc = async (req, res) => {
 exports.requestOwner = async (req, res) => {
     try {
         console.log('📝 Owner Request POST:', req.body);
-        const { loginId, name, email, phone, locationCode } = req.body;
-        
-        // Ensure loginId is unique
-        const existing = await Owner.findOne({ loginId }).lean();
-        if (existing) {
-            return res.status(409).json({ error: 'Owner ID already exists', code: 'DUPLICATE' });
-        }
+        const { name, email, phone, locationCode } = req.body;
+
+        // Always auto-generate a ROOMHY#### login ID — ignore any frontend-supplied value
+        const generateOwnerId = require('../utils/generateOwnerId');
+        const loginId = await generateOwnerId();
 
         const owner = new Owner({
             loginId,
@@ -252,7 +250,7 @@ exports.requestOwner = async (req, res) => {
                 status: 'requested'
             }
         });
-        
+
         await owner.save();
         console.log('✅ Owner request created:', owner.loginId);
 
@@ -556,7 +554,7 @@ exports.getPropertyTenants = async (req, res) => {
 
         // Verify property belongs to owner
         const normalizedOwnerId = String(ownerLoginId || '').toUpperCase();
-        const property = await Property.findById(propertyId);
+        const property = await Property.findById(propertyId).lean();
 
         if (!property) {
             return res.status(404).json({
@@ -576,7 +574,8 @@ exports.getPropertyTenants = async (req, res) => {
         const Tenant = require('../models/Tenant');
         const tenants = await Tenant.find({ property: propertyId })
             .populate('property', 'title roomType locationCode ownerLoginId')
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .lean();
 
         return res.json({
             success: true,

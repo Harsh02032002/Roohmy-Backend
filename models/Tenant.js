@@ -23,6 +23,9 @@ const TenantSchema = new mongoose.Schema({
     rentAgreementType: { type: String },
     paymentFrequency: { type: String },
     
+    // Tenant Photo
+    photo: { type: mongoose.Schema.Types.Mixed },
+
     // Additional Details
     occupation: { type: String },
     company: { type: String },
@@ -111,11 +114,22 @@ const TenantSchema = new mongoose.Schema({
         submittedAt: { type: Date }
     },
     
+    // Move-out Request (submitted by tenant)
+    moveoutRequest: {
+        status: { type: String, enum: ['none', 'pending', 'approved', 'rejected'], default: 'none' },
+        requestedDate: { type: Date },
+        reason: { type: String, default: '' },
+        submittedAt: { type: Date },
+        duesAtMoveout: { type: Number, default: 0 },
+        refundAmount: { type: Number, default: 0 },
+        refundStatus: { type: String, default: '' }
+    },
+
     // Status Tracking
-    status: { 
-        type: String, 
-        enum: ['pending', 'active', 'inactive', 'suspended'], 
-        default: 'pending' 
+    status: {
+        type: String,
+        enum: ['pending', 'active', 'inactive', 'suspended'],
+        default: 'pending'
     },
     kycStatus: {
         type: String,
@@ -134,5 +148,8 @@ const TenantSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
+
+TenantSchema.index({ ownerLoginId: 1 });
+TenantSchema.index({ property: 1 });
 
 module.exports = mongoose.models.Tenant || mongoose.model('Tenant', TenantSchema);

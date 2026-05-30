@@ -17,12 +17,15 @@ const { sendTemplateToResolvedUser } = require('../utils/whatsappBot');
 exports.assignTenant = async (req, res) => {
     try {
         const {
-            name, phone, email, propertyId, roomNo, bedNo, moveInDate, agreedRent, 
+            name, phone, email, propertyId, roomNo, bedNo, moveInDate, agreedRent,
             ownerLoginId, propertyTitle, locationCode,
-            dob, gender, building, floor, rentAgreementType, 
+            dob, gender, building, floor, rentAgreementType,
             paymentFrequency, additional, idProof,
             securityDepositTotal, securityDepositPaid, securityDepositBalance,
-            electricityCharge, maintenanceCharge
+            electricityCharge, maintenanceCharge,
+            minStay, noticePeriod, rentDueDate, accommodationType, lateFee,
+            licenseDuration, moveOutCharges, noticePeriodCharges, inclusions, gstCharges,
+            propertyAddress, permanentAddress
         } = req.body;
 
         const depositTotal = Math.max(0, parseInt(securityDepositTotal, 10) || 0);
@@ -210,9 +213,26 @@ exports.assignTenant = async (req, res) => {
             },
             ownerLoginId: String(ownerLoginId || property.ownerLoginId || '').toUpperCase() || undefined,
             propertyTitle: assignedPropertyTitle || property.title || '',
-            assignedBy: req.user ? req.user.id : (property.owner && property.owner._id ? property.owner._id : undefined), // Owner who assigned
+            assignedBy: req.user ? req.user.id : (property.owner && property.owner._id ? property.owner._id : undefined),
             status: 'pending',
-            kycStatus: idProof?.file ? 'submitted' : 'pending'
+            kycStatus: idProof?.file ? 'submitted' : 'pending',
+            digitalCheckin: {
+                agreementDetails: {
+                    ...(accommodationType    && { accommodationType }),
+                    ...(minStay              && { minimumStayDuration: `${minStay} Months` }),
+                    ...(noticePeriod         && { noticePeriodDays: noticePeriod }),
+                    ...(rentDueDate          && { licenseFeeDueDate: rentDueDate }),
+                    ...(lateFee              && { lateFee }),
+                    ...(licenseDuration      && { licenseDuration: `${licenseDuration} months` }),
+                    ...(moveOutCharges       != null && { moveOutCharges }),
+                    ...(noticePeriodCharges  != null && { noticePeriodCharges }),
+                    ...(inclusions           && { inclusions }),
+                    ...(gstCharges           != null && { gstCharges }),
+                    ...(propertyAddress      && { propertyAddress }),
+                    ...(permanentAddress     && { permanentAddress }),
+                    securityDeposit: depositTotal || 0
+                }
+            }
         });
 
         // Populate for response (include locationCode and owner info)
@@ -447,7 +467,8 @@ exports.getAllTenants = async (req, res) => {
         const tenants = await Tenant.find()
             .populate('property', 'title locationCode')
             .populate('user', 'name email phone')
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .lean();
 
         res.json({ success: true, tenants });
     } catch (error) {
@@ -472,14 +493,15 @@ exports.getTenantsByOwner = async (req, res) => {
         }
 
         // Get all properties owned by this owner
-        const properties = await Property.find(query);
+        const properties = await Property.find(query).lean();
         const propertyIds = properties.map(p => p._id);
 
         // Get tenants assigned to these properties
         const tenants = await Tenant.find({ property: { $in: propertyIds } })
             .populate('property', 'title roomType locationCode owner ownerLoginId')
             .populate('user', 'name email phone')
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .lean();
 
         res.json({ success: true, tenants });
     } catch (error) {
@@ -500,7 +522,8 @@ exports.getTenant = async (req, res) => {
             .populate('property', 'title roomType locationCode owner')
             .populate('user', 'name email phone')
             .populate('assignedBy', 'name')
-            .populate('verifiedBy', 'name');
+            .populate('verifiedBy', 'name')
+            .lean();
 
         if (!tenant) {
             return res.status(404).json({ success: false, message: 'Tenant not found' });

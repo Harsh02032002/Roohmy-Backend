@@ -21,12 +21,12 @@ exports.generateReport = async (req, res) => {
       const reportNameLower = reportName.toLowerCase();
       
       // Fetch properties for owner
-      const properties = await Property.find({ ownerLoginId });
+      const properties = await Property.find({ ownerLoginId }).lean();
       const propertyIds = properties.map(p => p._id);
-      
+
       if (reportNameLower.includes('tenant') || reportNameLower.includes('booking') || reportNameLower.includes('attendance')) {
         // Fetch Tenants
-        const tenants = await Tenant.find({ property: { $in: propertyIds } }).populate('room').populate('property');
+        const tenants = await Tenant.find({ property: { $in: propertyIds } }).populate('room').populate('property').lean();
         if (tenants.length > 0) {
           for (const t of tenants) {
             const row = fields.map(f => {
@@ -47,7 +47,7 @@ exports.generateReport = async (req, res) => {
         }
       } else if (reportNameLower.includes('room') || reportNameLower.includes('property') || reportNameLower.includes('occupancy')) {
         // Fetch Rooms
-        const rooms = await Room.find({ property: { $in: propertyIds } }).populate('property');
+        const rooms = await Room.find({ property: { $in: propertyIds } }).populate('property').lean();
         if (rooms.length > 0) {
            for (const r of rooms) {
              const row = fields.map(f => {
@@ -65,7 +65,7 @@ exports.generateReport = async (req, res) => {
         }
       } else if (reportNameLower.includes('complaint')) {
         // Fetch Complaints
-        const complaints = await Complaint.find({ property: { $in: propertyIds } }).populate('tenant').populate('room');
+        const complaints = await Complaint.find({ property: { $in: propertyIds } }).populate('tenant').populate('room').lean();
         if (complaints.length > 0) {
            for (const c of complaints) {
              const row = fields.map(f => {
@@ -113,7 +113,7 @@ exports.generateReport = async (req, res) => {
 exports.getPastReports = async (req, res) => {
   try {
     const { ownerLoginId } = req.params;
-    const reports = await Report.find({ ownerLoginId }).sort({ createdAt: -1 });
+    const reports = await Report.find({ ownerLoginId }).sort({ createdAt: -1 }).lean();
     res.status(200).json({ success: true, reports });
   } catch (error) {
     console.error('Error fetching past reports:', error);

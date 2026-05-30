@@ -17,7 +17,7 @@ exports.createRoom = async (req, res) => {
         if (!propertyId) return res.status(400).json({ message: 'Property ID is required' });
         if (!title || !String(title).trim()) return res.status(400).json({ message: 'Room title is required' });
 
-        const property = await Property.findById(propertyId);
+        const property = await Property.findById(propertyId).lean();
         if (!property) return res.status(404).json({ message: 'Property not found' });
         const ownerMatches =
             (property.owner && property.owner.toString() === user._id.toString()) ||
@@ -103,14 +103,14 @@ exports.getRoomsByProperty = async (req, res) => {
           return res.status(400).json({ message: "Invalid Property ID format" });
         }
         
-        let rooms = await Room.find({ property: new mongoose.Types.ObjectId(propertyId) });
-        
+        let rooms = await Room.find({ property: new mongoose.Types.ObjectId(propertyId) }).lean();
+
         if (unassigned === 'true') {
             const Tenant = require('../models/Tenant');
             const tenants = await Tenant.find({
                 property: new mongoose.Types.ObjectId(propertyId),
                 status: { $in: ['active', 'pending'] }
-            }).select('roomNo room');
+            }).select('roomNo room').lean();
             
             // Count tenants per room
             const tenantCountByRoomNo = {};
@@ -210,12 +210,12 @@ exports.getElectricityReadings = async (req, res) => {
             return res.status(400).json({ message: "Invalid Room ID format" });
         }
 
-        const room = await Room.findById(roomId).populate('property', 'title ownerLoginId');
+        const room = await Room.findById(roomId).populate('property', 'title ownerLoginId').lean();
         if (!room) {
             return res.status(404).json({ message: "Room not found" });
         }
 
-        return res.json({ 
+        return res.json({
             success: true,
             room: {
                 _id: room._id,
@@ -234,9 +234,9 @@ exports.getElectricityReadings = async (req, res) => {
 exports.getRoomsByOwner = async (req, res) => {
     try {
         const { ownerLoginId } = req.params;
-        const properties = await Property.find({ ownerLoginId });
+        const properties = await Property.find({ ownerLoginId }).lean();
         const propertyIds = properties.map(p => p._id);
-        const rooms = await Room.find({ property: { $in: propertyIds } }).populate('property', 'title');
+        const rooms = await Room.find({ property: { $in: propertyIds } }).populate('property', 'title').lean();
         res.json({ success: true, rooms });
     } catch (err) {
         console.error("Error getting rooms by owner:", err);
