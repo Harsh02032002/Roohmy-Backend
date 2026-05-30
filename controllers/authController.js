@@ -879,6 +879,13 @@ exports.setOwnerPassword = async (req, res) => {
         user.password = newPassword; // will be hashed by pre-save hook
         await user.save();
 
+        // Clear firstTime flag so next login works normally
+        const Owner = require('../models/Owner');
+        await Owner.findOneAndUpdate(
+            { loginId: normalizedLoginId },
+            { $set: { 'credentials.firstTime': false } }
+        );
+
         // Auto-login: return JWT on successful password set
         const token = generateToken(user);
         res.json({ success: true, token, user: { id: user._id, name: user.name, email: user.email, phone: user.phone, role: user.role, loginId: user.loginId } });
