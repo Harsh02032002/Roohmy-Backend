@@ -671,7 +671,16 @@ exports.login = async (req, res) => {
                 if (user.role === 'owner') {
                     const owner = await Owner.findOne({ loginId: user.loginId });
                     if (owner?.credentials?.firstTime) {
-                        reqReset = true;
+                        // If password is already bcrypt-hashed, owner already set their password — clear firstTime
+                        const isTemp = owner.credentials.password && String(owner.credentials.password) === String(password);
+                        if (isTemp) {
+                            reqReset = true;
+                        } else {
+                            await Owner.findOneAndUpdate(
+                                { loginId: user.loginId },
+                                { $set: { 'credentials.firstTime': false } }
+                            );
+                        }
                     }
                 }
                 if (reqReset) {
