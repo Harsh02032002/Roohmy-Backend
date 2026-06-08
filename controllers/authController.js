@@ -658,10 +658,7 @@ exports.login = async (req, res) => {
                 return res.status(403).json({ message: 'Account disabled' });
             }
 
-            // Owners can login using loginId or phone (not email)
-            if (user.role === 'owner' && isEmail) {
-                return res.status(403).json({ message: 'Owners must login using Owner ID or Phone Number' });
-            }
+            // Owners can login using email, loginId, or phone
 
             isMatch = await user.matchPassword(password);
             
