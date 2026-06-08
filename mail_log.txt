@@ -902,3 +902,27 @@
 [2026-06-08T13:03:52.825Z] FAILED: Mailjet API rejected the request (Check keys)
 [2026-06-08T13:04:11.214Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
 [2026-06-08T13:04:14.693Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-08T13:39:36.867Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-08T13:39:49.048Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-08T13:39:56.803Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-08T13:57:50.357Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-08T13:57:57.604Z] SUCCESS: Email to roomhyadmin@gmail.com, helloroomhy@gmail.com via SMTP
+[2026-06-08T13:57:59.207Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-08T14:05:15.859Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-08T14:05:29.578Z] SUCCESS: Email to roomhyadmin@gmail.com, helloroomhy@gmail.com via SMTP
+[2026-06-08T14:05:31.296Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-08T14:12:58.125Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-08T14:13:06.650Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-08T14:13:08.148Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-08T14:16:36.041Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-08T14:16:53.705Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-08T14:16:55.555Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-08T14:16:58.905Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-08T14:17:13.500Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-08T14:17:19.240Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-08T14:18:49.615Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-08T14:19:04.776Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-08T14:19:07.194Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-08T14:19:09.677Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-08T14:19:16.698Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-08T14:19:18.599Z] WHATSAPP: Delivered to 1 recipients
