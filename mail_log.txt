@@ -926,3 +926,141 @@
 [2026-06-08T14:19:09.677Z] FAILED: Mailjet API rejected the request (Check keys)
 [2026-06-08T14:19:16.698Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
 [2026-06-08T14:19:18.599Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T05:54:24.150Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T05:54:32.106Z] SUCCESS: Email to rajatbiv@gmail.com via SMTP
+[2026-06-09T05:54:33.674Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T05:54:35.517Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T05:54:44.219Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-09T05:54:45.552Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T05:57:36.455Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T05:57:43.944Z] SUCCESS: Email to rajatbiv@gmail.com via SMTP
+[2026-06-09T05:57:45.194Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T05:57:47.206Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T05:57:54.783Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-09T05:57:55.973Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T05:58:53.046Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T05:58:58.780Z] SUCCESS: Email to rajatbiv@gmail.com via SMTP
+[2026-06-09T05:59:00.112Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T05:59:01.175Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T05:59:06.478Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-09T05:59:07.893Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:04:21.741Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:04:27.794Z] SUCCESS: Email to rajatbiv@gmail.com via SMTP
+[2026-06-09T06:04:29.215Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:04:30.432Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:04:36.217Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-09T06:04:37.400Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:07:22.166Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:07:28.206Z] SUCCESS: Email to rajatbiv@gmail.com via SMTP
+[2026-06-09T06:07:29.640Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:07:31.075Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:07:36.816Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-09T06:07:38.241Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:10:41.840Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:10:47.885Z] SUCCESS: Email to rajatbiv@gmail.com via SMTP
+[2026-06-09T06:10:49.113Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:10:50.252Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:10:55.874Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-09T06:10:57.306Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:12:27.315Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:12:33.130Z] SUCCESS: Email to rajatbiv@gmail.com via SMTP
+[2026-06-09T06:12:34.380Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:12:35.485Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:12:41.548Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-09T06:12:42.984Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:16:45.672Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:16:52.020Z] SUCCESS: Email to rajatbiv@gmail.com via SMTP
+[2026-06-09T06:16:53.455Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:16:54.579Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:17:00.108Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-09T06:17:01.441Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:20:38.130Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:20:44.878Z] SUCCESS: Email to rajatbiv@gmail.com via SMTP
+[2026-06-09T06:20:46.311Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:20:47.951Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:20:53.482Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-09T06:20:54.811Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:26:37.715Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:26:43.391Z] SUCCESS: Email to rajatbiv@gmail.com via SMTP
+[2026-06-09T06:26:44.710Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:26:45.949Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:26:51.370Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-09T06:26:52.703Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:28:26.093Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:28:31.928Z] SUCCESS: Email to rajatbiv@gmail.com via SMTP
+[2026-06-09T06:28:33.362Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:28:34.898Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:28:40.359Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-09T06:28:41.656Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:30:09.732Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:30:16.481Z] SUCCESS: Email to rajatbiv@gmail.com via SMTP
+[2026-06-09T06:30:17.811Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:30:19.347Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:30:25.798Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-09T06:30:27.129Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:37:28.838Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:37:34.981Z] SUCCESS: Email to rajatbiv@gmail.com via SMTP
+[2026-06-09T06:37:36.621Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:37:38.156Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:37:44.197Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-09T06:37:45.631Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:43:12.412Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:43:18.853Z] SUCCESS: Email to rajatbiv@gmail.com via SMTP
+[2026-06-09T06:43:20.287Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:43:22.334Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:43:28.088Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-09T06:43:29.332Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:46:02.812Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:46:08.842Z] SUCCESS: Email to rajatbiv@gmail.com via SMTP
+[2026-06-09T06:46:10.071Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:46:11.402Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:46:17.089Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-09T06:46:18.365Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:49:01.084Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:49:07.228Z] SUCCESS: Email to rajatbiv@gmail.com via SMTP
+[2026-06-09T06:49:08.560Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:49:10.402Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:49:16.341Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-09T06:49:17.611Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:56:09.945Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:56:16.294Z] SUCCESS: Email to rajatbiv@gmail.com via SMTP
+[2026-06-09T06:56:17.523Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T06:56:18.957Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T06:56:24.895Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-09T06:56:26.126Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T07:00:13.559Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T07:00:20.102Z] SUCCESS: Email to rajatbiv@gmail.com via SMTP
+[2026-06-09T07:00:21.466Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T07:00:22.982Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T07:00:29.608Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-09T07:00:30.967Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T07:02:58.530Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T07:03:04.673Z] SUCCESS: Email to rajatbiv@gmail.com via SMTP
+[2026-06-09T07:03:05.902Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T07:03:07.947Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T07:03:14.298Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-09T07:03:15.667Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T07:04:00.894Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T07:04:07.753Z] SUCCESS: Email to rajatbiv@gmail.com via SMTP
+[2026-06-09T07:04:08.554Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T07:04:10.211Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T07:04:16.744Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-09T07:04:17.919Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T07:06:04.988Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T07:06:11.360Z] SUCCESS: Email to rajatbiv@gmail.com via SMTP
+[2026-06-09T07:06:12.108Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T07:06:13.696Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T07:06:20.659Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-09T07:06:21.477Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T07:09:28.138Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T07:09:34.178Z] SUCCESS: Email to rajatbiv@gmail.com via SMTP
+[2026-06-09T07:09:35.202Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T07:09:36.636Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T07:09:42.677Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-09T07:09:44.007Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T07:10:27.314Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T07:10:33.601Z] SUCCESS: Email to rajatbiv@gmail.com via SMTP
+[2026-06-09T07:10:34.865Z] WHATSAPP: Delivered to 1 recipients
+[2026-06-09T07:10:36.639Z] FAILED: Mailjet API rejected the request (Check keys)
+[2026-06-09T07:10:42.783Z] SUCCESS: Email to pratapchoubey3@gmail.com via SMTP
+[2026-06-09T07:10:44.010Z] WHATSAPP: Delivered to 1 recipients
